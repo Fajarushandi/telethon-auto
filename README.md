@@ -15,8 +15,9 @@ pkg install git python -y
 pip install --upgrade pip
 
 ## 🚀 Cara Jalankan
+
 ```bash
-git clone https://github.com/username/telethon-auto.git
+git clone https://github.com/Fajarushandi/telethon-auto.git
 cd telethon-auto
 pip install -r requirements.txt
 python tele.py
