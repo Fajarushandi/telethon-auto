@@ -1,46 +1,39 @@
-# 🌀 Telegram Auto Sender by FR
-
 <div align="center">
 
-```
-████████╗███████╗██╗      ███████╗██╗  ██╗██╗  ██╗ ██████╗ 
-╚══██╔══╝██╔════╝██║      ██╔════╝██║  ██║██║  ██║██╔═══██╗
-   ██║   █████╗  ██║      █████╗  ███████║███████║██║   ██║
-   ██║   ██╔══╝  ██║      ██╔══╝  ██╔══██║██╔══██║██║   ██║
-   ██║   ███████╗███████╗ ███████╗██║  ██║██║  ██║╚██████╔╝
-   ╚═╝   ╚══════╝╚══════╝ ╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ 
-```
+# 🌀 Telegram Auto Sender by FR
 
-**🔥 Telegram Auto Sender by FR 🔥**  
-Simple • Fast • Auto Config • No Edit File • Multiline Support
+### 🔥 Simple • Fast • Auto Config • Multiline Support
+Script otomatis kirim pesan ke banyak grup Telegram via Termux menggunakan **Telethon**.
+
+<br>
+
+![Telethon](https://img.shields.io/badge/Telethon-Automation-blue?style=for-the-badge)
+![Termux](https://img.shields.io/badge/Termux-Supported-green?style=for-the-badge)
+![Made By](https://img.shields.io/badge/Made%20By-FR-black?style=for-the-badge)
 
 </div>
 
 ---
 
-Script otomatis untuk mengirim pesan ke banyak grup Telegram via Termux menggunakan **Telethon**.  
-Tidak perlu edit file — semua konfigurasi diisi langsung lewat terminal seperti aplikasi.
-
----
-
 ## 🔑 Cara Ambil API ID & API HASH (WAJIB)
 
-1. Buka website resmi Telegram  
-   https://my.telegram.org/apps  
+Untuk menjalankan script, kamu membutuhkan API Telegram:
+
+1. Buka: https://my.telegram.org/apps  
 2. Login pakai nomor Telegram  
-3. Pilih **API Development Tools**  
+3. Masuk **API Development Tools**  
 4. Isi data bebas → Continue  
-5. Catat:
-   - API ID  
-   - API HASH  
+5. Ambil:
+   - **API ID**
+   - **API HASH**
 
 Masukkan saat script meminta.
 
 ---
 
-## ⚙️ Instalasi Awal (Untuk Termux Baru)
+## ⚙️ Instalasi Awal (Termux Baru)
 
-Jalankan perintah ini terlebih dahulu:
+Jalankan perintah berikut:
 
 ```bash
 pkg update -y && pkg upgrade -y
@@ -50,7 +43,7 @@ pip install --upgrade pip
 
 ---
 
-## 🚀 Cara Menjalankan Script
+## 🚀 Cara Install & Jalankan
 
 ```bash
 git clone https://github.com/Fajarushandi/telethon-auto.git
@@ -61,52 +54,51 @@ python tele.py
 
 ---
 
-## 🎯 Fitur Script
+## 🎯 Fitur Utama
 
-- 📝 Input pesan multiline (akhiri dengan `END`)
-- 🔄 Auto looping atau putaran terbatas
-- ⏳ Countdown animasi hidup
-- 🔥 Kirim ke banyak grup sekaligus
-- 💾 Auto save konfigurasi
-- 🎨 UI warna premium & bersih
-- 📂 Cocok untuk pemula, tidak perlu edit file
+- Multiline message (akhiri dengan `END`)
+- Auto looping atau sesuai jumlah putaran
+- Countdown animasi di 1 baris
+- UI warna premium & clean
+- Kirim ke banyak grup sekaligus
+- Auto save konfigurasi
+- Tidak perlu edit file manual
 
 ---
 
 ## 📘 Panduan Pemula
 
-### ✨ Cara mengisi pesan multiline
-Tulis pesan → Enter → lanjut.  
-Jika sudah selesai → ketik:
+### 📝 Cara Isi Pesan Multiline
+Ketik pesan → Enter → lanjut.  
+Jika selesai ketik:
 
 ```
 END
 ```
 
-### ✨ Cara memasukkan list grup
+### 🔗 Cara Isi Link Grup
 Pisahkan dengan koma:
 
 ```
 https://t.me/grup1, https://t.me/grup2, https://t.me/grup3
 ```
 
-### ✨ Delay aman
+### ⏱ Delay antar pesan
 - 3–8 detik → cepat  
 - 10–20 detik → aman flood
 
-### ✨ Interval putaran
-Jeda antar putaran.  
+### 🔁 Interval putaran
 Contoh:
 ```
 120 = 2 menit
 ```
 
-### ✨ Looping terus
+### ♾️ Looping terus?
 - `y` → jalan terus  
-- `n` → berhenti sesuai jumlah putaran
+- `n` → berhenti sesuai jumlah putaran  
 
 ---
 
 ## ⭐ Support
 
-Kalau script ini membantu, jangan lupa kasih **star** 😎🔥
+Kalau script ini membantu, jangan lupa kasih **STAR** biar repo makin keren 😎🔥
