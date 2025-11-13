@@ -1,6 +1,6 @@
 from telethon import TelegramClient
-import asyncio, json, os, datetime
-from colorama import Fore, Style, init
+import asyncio, json, os, datetime, sys
+from colorama import Fore, init
 init(autoreset=True)
 
 config_file = 'config.json'
@@ -12,20 +12,62 @@ def log(msg, color=Fore.WHITE):
     waktu = datetime.datetime.now().strftime("%H:%M:%S")
     print(color + f"[{waktu}] {msg}")
 
+async def spinner(text, duration=1):
+    frames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
+    end = asyncio.get_event_loop().time() + duration
+    i = 0
+    while asyncio.get_event_loop().time() < end:
+        sys.stdout.write(f"\r{text} {frames[i % len(frames)]} ")
+        sys.stdout.flush()
+        await asyncio.sleep(0.1)
+        i += 1
+    sys.stdout.write("\r" + " " * 60 + "\r")
+    sys.stdout.flush()
+
+async def countdown(sec):
+    for s in range(sec, 0, -1):
+        sys.stdout.write(f"\r⏳ Menunggu {s} detik sebelum putaran berikutnya... ")
+        sys.stdout.flush()
+        await asyncio.sleep(1)
+    print()
+
 def input_config():
+    os.system("clear")
     garis()
-    print(Fore.CYAN + "🌀 Telegram Auto Sender by FR")
+    print(Fore.CYAN + "🚀 Telegram Auto Sender by FR")
     garis()
     api_id = int(input("Masukkan API ID: "))
     api_hash = input("Masukkan API HASH: ")
     phone = input("Masukkan Nomor Telegram (+62...): ")
-    message = input("Masukkan Pesan yang Mau Dikirim: ")
-    groups_input = input("Masukkan Link Grup (pisahkan dengan koma): ")
-    groups = [g.strip() for g in groups_input.split(",") if g.strip()]
+
+    while True:
+        print("Masukkan Pesan yang Mau Dikirim (akhiri dengan END):")
+        lines = []
+        while True:
+            ln = input()
+            if ln.strip().lower() == "end":
+                break
+            lines.append(ln)
+        message = "\n".join(lines)
+
+        print("\n--- PREVIEW ---")
+        print(message)
+        print("---------------")
+        k = input("Pesan sudah benar? (y/n): ").lower().strip()
+        if k == "y":
+            break
+        os.system("clear")
+        garis()
+        print(Fore.CYAN + "🚀 Telegram Auto Sender by FR")
+        garis()
+
+    groups_raw = input("Masukkan Link Grup (pisahkan dengan koma): ")
+    groups = [g.strip() for g in groups_raw.split(",") if g.strip()]
     delay = int(input("Atur Delay antar kirim (detik): "))
     interval = int(input("Atur Interval antar putaran (detik): "))
     rounds = int(input("Atur Jumlah putaran: "))
-    repeat_choice = input("Looping terus? (y/n): ").lower().startswith('y')
+    repeat = input("Looping terus? (y/n): ").lower().strip()
+
     data = {
         "api_id": api_id,
         "api_hash": api_hash,
@@ -35,10 +77,10 @@ def input_config():
         "delay": delay,
         "interval": interval,
         "rounds": rounds,
-        "repeat": repeat_choice
+        "repeat": repeat
     }
     with open(config_file, "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f)
     return data
 
 def load_config():
@@ -47,60 +89,39 @@ def load_config():
 
 if os.path.exists(config_file):
     garis()
-    pilih = input("Gunakan konfigurasi sebelumnya? (y/n): ").lower()
-    if pilih == 'y':
-        cfg = load_config()
-    else:
-        cfg = input_config()
+    p = input("Gunakan konfigurasi sebelumnya? (y/n): ").lower().strip()
+    cfg = load_config() if p == "y" else input_config()
 else:
     cfg = input_config()
 
 client = TelegramClient('fr_session', cfg["api_id"], cfg["api_hash"])
-total_success = 0
-total_fail = 0
-
-async def send_one_round():
-    global total_success, total_fail
-    for g in cfg["groups"]:
-        try:
-            await client.send_message(g, cfg["message"])
-            total_success += 1
-            log(f"✅ Pesan terkirim ke {g}", Fore.GREEN)
-            await asyncio.sleep(cfg["delay"])
-        except Exception as e:
-            total_fail += 1
-            log(f"❌ Gagal kirim ke {g} — {e}", Fore.RED)
-            await asyncio.sleep(3)
 
 async def main():
-    start_time = datetime.datetime.now()
     await client.start(cfg["phone"])
-    garis()
-    print(Fore.CYAN + "🚀 Login berhasil! Mulai pengiriman pesan otomatis")
-    garis()
-    round_no = 0
+    putaran = 1
     while True:
-        round_no += 1
-        print(Fore.YELLOW + f"\n🔁 PUTARAN #{round_no}")
+        os.system("clear")
         garis()
-        await send_one_round()
-        log(f"🎯 Selesai putaran #{round_no}", Fore.GREEN)
-        if not cfg["repeat"]:
+        print(Fore.CYAN + f"🔥 MEMULAI PUTARAN #{putaran}")
+        garis()
+
+        for g in cfg["groups"]:
+            await spinner(Fore.YELLOW + f"Mengirim ke {g}", 0.8)
+            try:
+                await client.send_message(g, cfg["message"])
+                log(f"Pesan terkirim ke {g}", Fore.GREEN)
+            except:
+                log(f"Gagal mengirim ke {g}", Fore.RED)
+            await asyncio.sleep(cfg["delay"])
+
+        log(f"Selesai putaran #{putaran}", Fore.MAGENTA)
+        putaran += 1
+
+        if cfg["repeat"] != "y" and putaran > cfg["rounds"]:
             break
-        if cfg["rounds"] and round_no >= cfg["rounds"]:
-            log("Mencapai batas putaran yang ditentukan. Berhenti.", Fore.CYAN)
-            break
-        for remaining in range(cfg["interval"], 0, -1):
-            if remaining % 60 == 0:
-                menit = remaining // 60
-                log(f"⏳ Menunggu {menit} menit sebelum putaran berikutnya...", Fore.BLUE)
-            await asyncio.sleep(1)
-    garis()
-    end_time = datetime.datetime.now()
-    durasi = str(end_time - start_time).split('.')[0]
-    print(Fore.CYAN + f"✅ Semua proses selesai dalam {durasi}")
-    print(Fore.GREEN + f"Total sukses: {total_success}")
-    print(Fore.RED + f"Total gagal: {total_fail}\n")
+
+        await countdown(cfg["interval"])
 
 with client:
     client.loop.run_until_complete(main())
+        
