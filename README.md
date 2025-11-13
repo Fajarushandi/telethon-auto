@@ -37,18 +37,32 @@ Jalankan perintah berikut:
 
 ```bash
 pkg update -y && pkg upgrade -y
-pkg install git python -y
-pip install --upgrade pip
 ```
 
+```bash
+pkg install git python -y
+```
+
+```bash
+pip install --upgrade pip
+```
 ---
 
 ## 🚀 Cara Install & Jalankan
 
 ```bash
 git clone https://github.com/Fajarushandi/telethon-auto.git
+```
+
+```bash
 cd telethon-auto
+```
+
+```bash
 pip install -r requirements.txt
+```
+
+```bash
 python tele.py
 ```
 
