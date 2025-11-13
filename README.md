@@ -63,7 +63,7 @@ pip install -r requirements.txt
 ```
 
 ```bash
-python tele.py
+python main.py
 ```
 
 ---
