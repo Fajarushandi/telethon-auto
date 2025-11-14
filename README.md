@@ -1,9 +1,9 @@
 <div align="center">
 
-# 🌀 Telegram Auto Sender by FR
+# 🌀 Telegram Multi-Account Auto Sender by FR
 
-### 🔥 Simple • Fast • Auto Config • Multiline Support  
-Script otomatis untuk mengirim pesan ke banyak grup Telegram via Termux menggunakan **Telethon**.
+### 🔥 Simple • Fast • Multi Account • Auto Config  
+Script otomatis kirim pesan ke banyak grup Telegram via Termux menggunakan **Telethon**, dengan dukungan **multiakun + menu pemilihan akun**.
 
 <br>
 
@@ -85,39 +85,64 @@ python main.py
 
 ---
 
-## 🛑 Cara Stop Script (Paling Penting)
+## 🧩 Sistem Multi Akun (FITUR BARU)
 
-Jika script sedang looping / berjalan terus dan kamu ingin berhenti:
+Script sekarang mendukung **multiakun** dengan sistem menu:
+
+Saat menjalankan script:
+
+```
+1. +628xxxxxxx
+2. +628xxxxxxx
+3. Tambah akun baru
+```
+
+### ✔ Pilih akun → script jalan pakai akun itu  
+### ✔ Tambah akun baru → login & auto buat session  
+### ✔ Setiap akun punya konfigurasi sendiri  
+### ✔ Bisa pakai config lama / bikin baru (y/n)
+
+Semua akun disimpan otomatis di:
+
+```
+accounts.json
+```
+
+---
+
+## 🛑 Cara Stop Script (Penting)
+
+Jika script sedang berjalan dan ingin berhenti:
 
 ```
 CTRL + C
 ```
 
-Di HP Termux:
+Di Termux HP:
 - Tekan tombol **CTRL**
-- Lalu tekan **C**
-
-Script akan langsung stop.
+- Tekan **C**
 
 ---
 
 ## 🎯 Fitur Utama
 
-- Multiline message (akhiri dengan `END`)
+- Multi akun (menu pemilihan akun)
+- Auto simpan konfigurasi setiap akun
+- Multiline message (END)
 - Auto looping atau sesuai jumlah putaran
-- Countdown animasi dalam 1 baris
+- Delay custom
+- Countdown animasi 1 baris
 - UI warna premium & clean
-- Kirim ke banyak grup sekaligus
-- Auto save konfigurasi
 - Tidak perlu edit file manual
+- Satu akun bisa punya config berbeda
 
 ---
 
 ## 📘 Panduan Pemula
 
 ### 📝 Cara Isi Pesan Multiline  
-Ketik pesan → Enter → lanjut terus.  
-Jika sudah selesai ketik:
+Ketik pesan → Enter terus.  
+Akhiri dengan:
 
 ```
 END
@@ -136,7 +161,8 @@ https://t.me/grup1, https://t.me/grup2, https://t.me/grup3
 
 ### ⏱ Delay Antar Pesan  
 - 3–8 detik → cepat  
-- 10–20 detik → aman flood
+- 10–20 detik → aman ban  
+- Bisa disesuaikan bebas
 
 ---
 
@@ -149,8 +175,8 @@ Contoh:
 
 ---
 
-### ♾️ Looping Terus?
-- `y` → berjalan tanpa henti  
+### ♾ Looping Terus?
+- `y` → jalan terus  
 - `n` → berhenti sesuai jumlah putaran  
 
 ---
