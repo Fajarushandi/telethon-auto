@@ -3,7 +3,7 @@
 # 🌀 Telegram Auto Sender by FR
 
 ### 🔥 Simple • Fast • Auto Config • Multiline Support
-Script otomatis kirim pesan ke banyak grup Telegram via Termux menggunakan **Telethon**.
+Script otomatis untuk mengirim pesan ke banyak grup Telegram via Termux menggunakan **Telethon**.
 
 <br>
 
@@ -15,14 +15,22 @@ Script otomatis kirim pesan ke banyak grup Telegram via Termux menggunakan **Tel
 
 ---
 
+## 📥 Download Termux (APK)
+
+Jika Termux kamu belum terpasang atau versi Play Store sering error, gunakan versi yang paling stabil:
+
+👉 **[Klik di sini untuk download Termux (APK)](https://f-droid.org/repo/com.termux_1002.apk)**
+
+---
+
 ## 🔑 Cara Ambil API ID & API HASH (WAJIB)
 
-Untuk menjalankan script, kamu membutuhkan API Telegram:
+Untuk menjalankan script, kamu harus punya API Telegram:
 
 1. Buka: https://my.telegram.org/apps  
-2. Login pakai nomor Telegram  
-3. Masuk **API Development Tools**  
-4. Isi data bebas → Continue  
+2. Login menggunakan nomor Telegram  
+3. Masuk menu **API Development Tools**  
+4. Isi data bebas lalu klik Continue  
 5. Ambil:
    - **API ID**
    - **API HASH**
@@ -46,6 +54,7 @@ pkg install git python -y
 ```bash
 pip install --upgrade pip
 ```
+
 ---
 
 ## 🚀 Cara Install & Jalankan
@@ -72,7 +81,7 @@ python main.py
 
 - Multiline message (akhiri dengan `END`)
 - Auto looping atau sesuai jumlah putaran
-- Countdown animasi di 1 baris
+- Countdown animasi dalam 1 baris
 - UI warna premium & clean
 - Kirim ke banyak grup sekaligus
 - Auto save konfigurasi
@@ -82,37 +91,46 @@ python main.py
 
 ## 📘 Panduan Pemula
 
-### 📝 Cara Isi Pesan Multiline
-Ketik pesan → Enter → lanjut.  
-Jika selesai ketik:
+### 📝 Cara Isi Pesan Multiline  
+Ketik pesan → Enter → lanjut terus.  
+Jika sudah selesai ketik:
 
 ```
 END
 ```
 
-### 🔗 Cara Isi Link Grup
+---
+
+### 🔗 Cara Isi Link Grup  
 Pisahkan dengan koma:
 
 ```
 https://t.me/grup1, https://t.me/grup2, https://t.me/grup3
 ```
 
-### ⏱ Delay antar pesan
+---
+
+### ⏱ Delay Antar Pesan  
 - 3–8 detik → cepat  
 - 10–20 detik → aman flood
 
-### 🔁 Interval putaran
+---
+
+### 🔁 Interval Putaran  
 Contoh:
+
 ```
 120 = 2 menit
 ```
 
-### ♾️ Looping terus?
-- `y` → jalan terus  
+---
+
+### ♾️ Looping Terus?
+- `y` → berjalan tanpa henti  
 - `n` → berhenti sesuai jumlah putaran  
 
 ---
 
-## ⭐ Support
-
-Kalau script ini membantu, jangan lupa kasih **STAR** biar repo makin keren 😎🔥
+## ⭐ Support  
+Kalau script ini membantu, jangan lupa kasih **STAR** di repo ini 😎🔥  
+Biar makin naik kelas.
