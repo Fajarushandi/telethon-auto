@@ -52,7 +52,7 @@ Masukkan saat script meminta.
 Jalankan perintah berikut:
 
 ```bash
-pkg update -y && pkg upgrade -y
+pkg update && pkg upgrade -y
 ```
 
 ```bash
