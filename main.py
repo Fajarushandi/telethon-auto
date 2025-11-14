@@ -3,7 +3,7 @@ import asyncio, json, os, datetime, sys
 from colorama import Fore, init
 init(autoreset=True)
 
-config_file = 'config.json'
+config_file = 'accounts.json'
 
 def garis():
     print(Fore.CYAN + "─" * 55)
@@ -31,47 +31,61 @@ async def countdown(sec):
         await asyncio.sleep(1)
     print()
 
-def input_config():
+def load_accounts():
+    if not os.path.exists(config_file):
+        return {"accounts": []}
+    with open(config_file, "r") as f:
+        return json.load(f)
+
+def save_accounts(data):
+    with open(config_file, "w") as f:
+        json.dump(data, f)
+
+def menu_pilih_akun(accounts):
     os.system("clear")
     garis()
-    print(Fore.CYAN + "🚀 Telegram Auto Sender by FR")
+    print(Fore.CYAN + "📱 Pilih Akun Telegram")
+    garis()
+    if len(accounts) == 0:
+        print("Belum ada akun.")
+    for i, acc in enumerate(accounts):
+        print(f"{i+1}. {acc['phone']}")
+    print(f"{len(accounts)+1}. Tambah akun baru")
+    garis()
+    return int(input("Pilih nomor: "))
+
+def tambah_akun(acc_data):
+    os.system("clear")
+    garis()
+    print(Fore.CYAN + "➕ Tambah Akun Baru")
     garis()
     api_id = int(input("Masukkan API ID: "))
     api_hash = input("Masukkan API HASH: ")
     phone = input("Masukkan Nomor Telegram (+62...): ")
+    session_name = f"session_{phone.replace('+','')}"
+    client = TelegramClient(session_name, api_id, api_hash)
+    return api_id, api_hash, phone, session_name
 
+def input_config():
+    os.system("clear")
+    garis()
+    print(Fore.CYAN + "⚙️ Konfigurasi Baru")
+    garis()
+    message_lines = []
+    print("Masukkan Pesan (akhiri dengan END):")
     while True:
-        print("Masukkan Pesan yang Mau Dikirim (akhiri dengan END):")
-        lines = []
-        while True:
-            ln = input()
-            if ln.strip().lower() == "end":
-                break
-            lines.append(ln)
-        message = "\n".join(lines)
-
-        print("\n--- PREVIEW ---")
-        print(message)
-        print("---------------")
-        k = input("Pesan sudah benar? (y/n): ").lower().strip()
-        if k == "y":
+        ln = input()
+        if ln.strip().lower() == "end":
             break
-        os.system("clear")
-        garis()
-        print(Fore.CYAN + "🚀 Telegram Auto Sender by FR")
-        garis()
-
-    groups_raw = input("Masukkan Link Grup (pisahkan dengan koma): ")
+        message_lines.append(ln)
+    message = "\n".join(message_lines)
+    groups_raw = input("Masukkan Link Grup (pisahkan koma): ")
     groups = [g.strip() for g in groups_raw.split(",") if g.strip()]
-    delay = int(input("Atur Delay antar kirim (detik): "))
-    interval = int(input("Atur Interval antar putaran (detik): "))
-    rounds = int(input("Atur Jumlah putaran: "))
-    repeat = input("Looping terus? (y/n): ").lower().strip()
-
-    data = {
-        "api_id": api_id,
-        "api_hash": api_hash,
-        "phone": phone,
+    delay = int(input("Delay antar pesan (detik): "))
+    interval = int(input("Interval antar putaran (detik): "))
+    rounds = int(input("Jumlah putaran: "))
+    repeat = input("Loop terus? (y/n): ").lower().strip()
+    return {
         "message": message,
         "groups": groups,
         "delay": delay,
@@ -79,32 +93,51 @@ def input_config():
         "rounds": rounds,
         "repeat": repeat
     }
-    with open(config_file, "w") as f:
-        json.dump(data, f)
-    return data
 
-def load_config():
-    with open(config_file, "r") as f:
-        return json.load(f)
+data = load_accounts()
+acc_list = data["accounts"]
+pil = menu_pilih_akun(acc_list)
 
-if os.path.exists(config_file):
-    garis()
-    p = input("Gunakan konfigurasi sebelumnya? (y/n): ").lower().strip()
-    cfg = load_config() if p == "y" else input_config()
-else:
+if pil == len(acc_list) + 1:
+    api_id, api_hash, phone, session_name = tambah_akun(acc_list)
+    new_acc = {
+        "phone": phone,
+        "api_id": api_id,
+        "api_hash": api_hash,
+        "session": session_name,
+        "last_config": None
+    }
+    acc_list.append(new_acc)
+    save_accounts(data)
     cfg = input_config()
+    new_acc["last_config"] = cfg
+    save_accounts(data)
+    active = new_acc
+else:
+    active = acc_list[pil-1]
+    if active["last_config"] is not None:
+        p = input("Gunakan config sebelumnya? (y/n): ").lower().strip()
+        if p == "y":
+            cfg = active["last_config"]
+        else:
+            cfg = input_config()
+            active["last_config"] = cfg
+            save_accounts(data)
+    else:
+        cfg = input_config()
+        active["last_config"] = cfg
+        save_accounts(data)
 
-client = TelegramClient('fr_session', cfg["api_id"], cfg["api_hash"])
+client = TelegramClient(active["session"], active["api_id"], active["api_hash"])
 
 async def main():
-    await client.start(cfg["phone"])
+    await client.start(active["phone"])
     putaran = 1
     while True:
         os.system("clear")
         garis()
         print(Fore.CYAN + f"🔥 MEMULAI PUTARAN #{putaran}")
         garis()
-
         for g in cfg["groups"]:
             await spinner(Fore.YELLOW + f"Mengirim ke {g}", 0.8)
             try:
@@ -113,15 +146,11 @@ async def main():
             except:
                 log(f"Gagal mengirim ke {g}", Fore.RED)
             await asyncio.sleep(cfg["delay"])
-
         log(f"Selesai putaran #{putaran}", Fore.MAGENTA)
         putaran += 1
-
         if cfg["repeat"] != "y" and putaran > cfg["rounds"]:
             break
-
         await countdown(cfg["interval"])
 
 with client:
     client.loop.run_until_complete(main())
-        
