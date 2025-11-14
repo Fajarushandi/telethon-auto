@@ -2,7 +2,7 @@
 
 # 🌀 Telegram Auto Sender by FR
 
-### 🔥 Simple • Fast • Auto Config • Multiline Support
+### 🔥 Simple • Fast • Auto Config • Multiline Support  
 Script otomatis untuk mengirim pesan ke banyak grup Telegram via Termux menggunakan **Telethon**.
 
 <br>
@@ -12,6 +12,14 @@ Script otomatis untuk mengirim pesan ke banyak grup Telegram via Termux mengguna
 ![Made By](https://img.shields.io/badge/Made%20By-FR-black?style=for-the-badge)
 
 </div>
+
+---
+
+## 📸 Preview
+
+Tampilan saat script sedang berjalan:
+
+<img src="preview.jpg" width="350">
 
 ---
 
@@ -77,6 +85,22 @@ python main.py
 
 ---
 
+## 🛑 Cara Stop Script (Paling Penting)
+
+Jika script sedang looping / berjalan terus dan kamu ingin berhenti:
+
+```
+CTRL + C
+```
+
+Di HP Termux:
+- Tekan tombol **CTRL**
+- Lalu tekan **C**
+
+Script akan langsung stop.
+
+---
+
 ## 🎯 Fitur Utama
 
 - Multiline message (akhiri dengan `END`)
@@ -132,5 +156,5 @@ Contoh:
 ---
 
 ## ⭐ Support  
-Kalau script ini membantu, jangan lupa kasih **STAR** di repo ini 😎🔥  
+Kalau script ini membantu, jangan lupa kasih **STAR** di repo 😎🔥  
 Biar makin naik kelas.
