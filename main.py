@@ -133,23 +133,53 @@ client = TelegramClient(active["session"], active["api_id"], active["api_hash"])
 async def main():
     await client.start(active["phone"])
     putaran = 1
+    total_sent = 0
+    last_runtime = None
+    total_rounds = cfg["rounds"] if cfg["repeat"] != "y" else "∞"
+
     while True:
         os.system("clear")
+
+        if last_runtime is None:
+            est_seconds = int((cfg["delay"] + 1) * len(cfg["groups"]) * 1.05)
+            est_text = (datetime.datetime.now() + datetime.timedelta(seconds=est_seconds)).strftime("%H:%M:%S")
+        else:
+            est_text = (datetime.datetime.now() + datetime.timedelta(seconds=last_runtime)).strftime("%H:%M:%S")
+
         garis()
-        print(Fore.CYAN + f"🔥 MEMULAI PUTARAN #{putaran}")
+        print(Fore.CYAN + f"📱 Akun aktif : {active['phone']}")
+        print(Fore.CYAN + f"🔥 Memulai Putaran {putaran}/{total_rounds}")
+        print(Fore.CYAN + f"📨 Total pesan terkirim : {total_sent}")
+        print(Fore.CYAN + f"⏱ Estimasi selesai putaran ini : {est_text}")
         garis()
+
+        start_time = datetime.datetime.now()
+
         for g in cfg["groups"]:
-            await spinner(Fore.YELLOW + f"Mengirim ke {g}", 0.8)
+            await spinner(Fore.YELLOW + f"Mengirim ke {g}", 0.7)
             try:
                 await client.send_message(g, cfg["message"])
                 log(f"Pesan terkirim ke {g}", Fore.GREEN)
+                total_sent += 1
             except:
                 log(f"Gagal mengirim ke {g}", Fore.RED)
             await asyncio.sleep(cfg["delay"])
-        log(f"Selesai putaran #{putaran}", Fore.MAGENTA)
+
+        end_time = datetime.datetime.now()
+        last_runtime = (end_time - start_time).total_seconds()
+
+        next_start = datetime.datetime.now() + datetime.timedelta(seconds=cfg["interval"])
+
+        garis()
+        print(Fore.MAGENTA + f"✨ Selesai putaran {putaran}/{total_rounds}")
+        print(Fore.GREEN + f"📨 Terkirim sejauh ini : {total_sent}")
+        print(Fore.CYAN + f"⏱ Putaran selanjutnya mulai : {next_start.strftime('%H:%M:%S')}")
+        garis()
+
         putaran += 1
         if cfg["repeat"] != "y" and putaran > cfg["rounds"]:
             break
+
         await countdown(cfg["interval"])
 
 with client:
