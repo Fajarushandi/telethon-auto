@@ -158,7 +158,9 @@ async def main():
         for g in cfg["groups"]:
             await spinner(Fore.YELLOW + f"Mengirim ke {g}", 0.7)
             try:
-                await client.send_message(g, cfg["message"])
+                wm = "✨ Powered by FR ✨"
+                final_msg = cfg["message"] + "\n\n" + wm
+                await client.send_message(g, final_msg)
                 log(f"Pesan terkirim ke {g}", Fore.GREEN)
                 total_sent += 1
             except:
