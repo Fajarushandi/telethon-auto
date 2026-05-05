@@ -1,188 +1,365 @@
 from telethon import TelegramClient
-import asyncio, json, os, datetime, sys
+from telethon.errors import FloodWaitError
+from telethon.tl.functions.messages import ImportChatInviteRequest
+from telethon.tl.functions.users import GetFullUserRequest
+from telethon.tl.functions.channels import JoinChannelRequest
+import asyncio, json, os, random, shutil
 from colorama import Fore, init
 init(autoreset=True)
 
-config_file = 'accounts.json'
+BLUE=Fore.CYAN
+GREEN=Fore.GREEN
+RED=Fore.RED
+YELLOW=Fore.YELLOW
+WHITE=Fore.WHITE
+
+config_file="accounts.json"
+
+def get_width():
+    try:
+        return shutil.get_terminal_size().columns
+    except:
+        return 60
 
 def garis():
-    print(Fore.CYAN + "─" * 55)
+    print(BLUE + "─" * get_width())
 
-def log(msg, color=Fore.WHITE):
-    waktu = datetime.datetime.now().strftime("%H:%M:%S")
-    print(color + f"[{waktu}] {msg}")
+def header():
+    width = get_width()
+    title = " TELEGRAM AUTO SENDER — MULTI AKUN "
+    print(BLUE + "═" * width)
+    print(BLUE + title.center(width))
+    print(BLUE + "═" * width)
 
-async def spinner(text, duration=1):
-    frames = ["⠋","⠙","⠹","⠸","⠼","⠴","⠦","⠧","⠇","⠏"]
-    end = asyncio.get_event_loop().time() + duration
-    i = 0
-    while asyncio.get_event_loop().time() < end:
-        sys.stdout.write(f"\r{text} {frames[i % len(frames)]} ")
-        sys.stdout.flush()
-        await asyncio.sleep(0.1)
-        i += 1
-    sys.stdout.write("\r" + " " * 60 + "\r")
-    sys.stdout.flush()
-
-async def countdown(sec):
-    for s in range(sec, 0, -1):
-        sys.stdout.write(f"\r⏳ Menunggu {s} detik sebelum putaran berikutnya... ")
-        sys.stdout.flush()
-        await asyncio.sleep(1)
-    print()
+def clear():
+    os.system("cls" if os.name == "nt" else "clear")
 
 def load_accounts():
     if not os.path.exists(config_file):
-        return {"accounts": []}
-    with open(config_file, "r") as f:
+        return {"accounts":[]}
+    with open(config_file,"r") as f:
         return json.load(f)
 
-def save_accounts(data):
-    with open(config_file, "w") as f:
-        json.dump(data, f)
+def save_accounts(d):
+    with open(config_file,"w") as f:
+        json.dump(d,f)
 
-def menu_pilih_akun(accounts):
-    os.system("clear")
-    garis()
-    print(Fore.CYAN + "📱 Pilih Akun Telegram")
-    garis()
-    if len(accounts) == 0:
-        print("Belum ada akun.")
-    for i, acc in enumerate(accounts):
-        print(f"{i+1}. {acc['phone']}")
-    print(f"{len(accounts)+1}. Tambah akun baru")
-    garis()
-    return int(input("Pilih nomor: "))
+def log_error(text):
+    with open("error.log","a") as f:
+        f.write(text+"\n")
 
-def tambah_akun(acc_data):
-    os.system("clear")
+def tambah_akun():
+    clear()
     garis()
-    print(Fore.CYAN + "➕ Tambah Akun Baru")
+    print(BLUE+"Tambah Akun Baru")
     garis()
-    api_id = int(input("Masukkan API ID: "))
-    api_hash = input("Masukkan API HASH: ")
-    phone = input("Masukkan Nomor Telegram (+62...): ")
-    session_name = f"session_{phone.replace('+','')}"
-    client = TelegramClient(session_name, api_id, api_hash)
-    return api_id, api_hash, phone, session_name
+    api_id=int(input("API ID: "))
+    api_hash=input("API HASH: ")
+    phone=input("Nomor (+62): ")
+    session=f"session_{phone.replace('+','')}"
+    return {"phone":phone,"api_id":api_id,"api_hash":api_hash,"session":session,"last_config":None}
 
 def input_config():
-    os.system("clear")
+    clear()
     garis()
-    print(Fore.CYAN + "⚙️ Konfigurasi Baru")
+    print(BLUE+"Konfigurasi Baru")
     garis()
-    message_lines = []
-    print("Masukkan Pesan (akhiri dengan END):")
+    msg=[]
+    print("Pesan (END untuk selesai):")
     while True:
-        ln = input()
-        if ln.strip().lower() == "end":
-            break
-        message_lines.append(ln)
-    message = "\n".join(message_lines)
-    groups_raw = input("Masukkan Link Grup (pisahkan koma): ")
-    groups = [g.strip() for g in groups_raw.split(",") if g.strip()]
-    delay = int(input("Delay antar pesan (detik): "))
-    interval = int(input("Interval antar putaran (detik): "))
-    rounds = int(input("Jumlah putaran: "))
-    repeat = input("Loop terus? (y/n): ").lower().strip()
+        t=input()
+        if t.lower()=="end": break
+        msg.append(t)
+    groups=[g.strip() for g in input("Grup (pisah koma): ").split(",") if g.strip()]
+    delay=int(input("Delay: "))
+    interval=int(input("Interval: "))
+    rounds=int(input("Putaran: "))
+    repeat=input("Loop? (y/n): ").lower().strip()
     return {
-        "message": message,
-        "groups": groups,
-        "delay": delay,
-        "interval": interval,
-        "rounds": rounds,
-        "repeat": repeat
+        "message":"\n".join(msg),
+        "groups":groups,
+        "delay":delay,
+        "interval":interval,
+        "rounds":rounds,
+        "repeat":repeat
     }
 
-data = load_accounts()
-acc_list = data["accounts"]
-pil = menu_pilih_akun(acc_list)
+def bar(cur,total):
+    if not total: return "-"*20
+    fill=int((cur/total)*20)
+    return "#"*fill+"-"*(20-fill)
 
-if pil == len(acc_list) + 1:
-    api_id, api_hash, phone, session_name = tambah_akun(acc_list)
-    new_acc = {
-        "phone": phone,
-        "api_id": api_id,
-        "api_hash": api_hash,
-        "session": session_name,
-        "last_config": None
-    }
-    acc_list.append(new_acc)
-    save_accounts(data)
-    cfg = input_config()
-    new_acc["last_config"] = cfg
-    save_accounts(data)
-    active = new_acc
-else:
-    active = acc_list[pil-1]
-    if active["last_config"] is not None:
-        p = input("Gunakan config sebelumnya? (y/n): ").lower().strip()
-        if p == "y":
-            cfg = active["last_config"]
-        else:
-            cfg = input_config()
-            active["last_config"] = cfg
-            save_accounts(data)
-    else:
-        cfg = input_config()
-        active["last_config"] = cfg
-        save_accounts(data)
+async def worker(acc,cfg,status,done,failmap):
+    client=TelegramClient(acc["session"],acc["api_id"],acc["api_hash"])
+    await client.start(acc["phone"])
 
-client = TelegramClient(active["session"], active["api_id"], active["api_hash"])
+    resolved={}
+    for url in cfg["groups"]:
+        try:
+            ent=await client.get_entity(url)
+            resolved[ent.id]=url
+        except Exception as e:
+            failmap[acc["phone"]].append((url,str(e)))
+            log_error(f"{acc['phone']} | {url} | {str(e)}")
 
-async def main():
-    await client.start(active["phone"])
-    putaran = 1
-    total_sent = 0
-    last_runtime = None
-    total_rounds = cfg["rounds"] if cfg["repeat"] != "y" else "∞"
+    groups=list(resolved.keys())
+    putaran=1
+    sent=0
+    total_rounds=cfg["rounds"] if cfg["repeat"]!="y" else "∞"
 
     while True:
-        os.system("clear")
+        for idx,eid in enumerate(groups):
+            url=resolved[eid]
 
-        if last_runtime is None:
-            est_seconds = int((cfg["delay"] + 1) * len(cfg["groups"]) * 1.05)
-            est_text = (datetime.datetime.now() + datetime.timedelta(seconds=est_seconds)).strftime("%H:%M:%S")
-        else:
-            est_text = (datetime.datetime.now() + datetime.timedelta(seconds=last_runtime)).strftime("%H:%M:%S")
+            if sent >= 100:
+                status[acc["phone"]]["status"] = "Limit tercapai"
+                done[acc["phone"]] = True
+                await client.disconnect()
+                return
 
+            status[acc["phone"]] = {
+                "putaran":putaran,
+                "total":total_rounds,
+                "progress":f"[{bar(idx+1,len(groups))}]",
+                "prog":f"{idx+1}/{len(groups)}",
+                "status":"Mengirim",
+                "group":url,
+                "sent":sent
+            }
+
+            final_message = cfg["message"]
+
+            for attempt in range(3):
+                try:
+                    await client.send_message(eid, final_message, parse_mode="md")
+                    sent+=1
+                    break
+                except FloodWaitError as e:
+                    status[acc["phone"]]["status"] = f"FloodWait {e.seconds}s"
+                    await asyncio.sleep(e.seconds)
+                except Exception as e:
+                    if attempt == 2:
+                        failmap[acc["phone"]].append((url,str(e)))
+                        log_error(f"{acc['phone']} | {url} | {str(e)}")
+                    else:
+                        await asyncio.sleep(2)
+
+            delay = random.randint(cfg["delay"], cfg["delay"]+5)
+            for s in range(delay,0,-1):
+                status[acc["phone"]]["status"]=f"Delay {s}"
+                await asyncio.sleep(random.uniform(0.8,1.5))
+
+        if cfg["repeat"]!="y" and putaran>=cfg["rounds"]:
+            done[acc["phone"]]=True
+            await client.disconnect()
+            return
+
+        for s in range(cfg["interval"],0,-1):
+            status[acc["phone"]] = {
+                "putaran":putaran,
+                "total":total_rounds,
+                "progress":"["+"-"*20+"]",
+                "prog":"-",
+                "status":f"Interval {s}",
+                "group":"-",
+                "sent":sent
+            }
+            await asyncio.sleep(1)
+
+        putaran+=1
+
+async def dashboard(status,selected,done,failmap):
+    while True:
+        print("\033[H\033[J",end="")
         garis()
-        print(Fore.CYAN + f"📱 Akun aktif : {active['phone']}")
-        print(Fore.CYAN + f"🔥 Memulai Putaran {putaran}/{total_rounds}")
-        print(Fore.CYAN + f"📨 Total pesan terkirim : {total_sent}")
-        print(Fore.CYAN + f"⏱ Estimasi selesai putaran ini : {est_text}")
+        print(BLUE+"Mode Paralel — Realtime Monitor")
         garis()
 
-        start_time = datetime.datetime.now()
+        for phone in selected:
+            s=status.get(phone,{
+                "putaran":"-",
+                "total":"-",
+                "progress":"["+"-"*20+"]",
+                "prog":"-",
+                "status":"Menyiapkan",
+                "group":"-",
+                "sent":"-"
+            })
 
-        for g in cfg["groups"]:
-            await spinner(Fore.YELLOW + f"Mengirim ke {g}", 0.7)
-            try:
-                wm = "✨ Powered by FR ✨"
-                final_msg = cfg["message"] + "\n\n" + wm
-                await client.send_message(g, final_msg)
-                log(f"Pesan terkirim ke {g}", Fore.GREEN)
-                total_sent += 1
-            except:
-                log(f"Gagal mengirim ke {g}", Fore.RED)
-            await asyncio.sleep(cfg["delay"])
+            status_text = s["status"]
+            if "Delay" in status_text:
+                color = YELLOW
+            elif "FloodWait" in status_text:
+                color = RED
+            elif "Mengirim" in status_text:
+                color = GREEN
+            else:
+                color = WHITE
 
-        end_time = datetime.datetime.now()
-        last_runtime = (end_time - start_time).total_seconds()
+            print(BLUE + f"┌─ {phone}")
+            print(f"│ Putaran : {YELLOW}{s['putaran']} / {s['total']}")
+            print(f"│ Progress: {GREEN}{s['progress']} {s['prog']}")
+            print(f"│ Status  : {color}{status_text}")
+            print(f"│ Grup    : {s['group']}")
+            print(f"│ Terkirim: {GREEN}{s['sent']}")
+            print(BLUE + "└" + "─"*(get_width()-1))
 
-        next_start = datetime.datetime.now() + datetime.timedelta(seconds=cfg["interval"])
-
-        garis()
-        print(Fore.MAGENTA + f"✨ Selesai putaran {putaran}/{total_rounds}")
-        print(Fore.GREEN + f"📨 Terkirim sejauh ini : {total_sent}")
-        print(Fore.CYAN + f"⏱ Putaran selanjutnya mulai : {next_start.strftime('%H:%M:%S')}")
-        garis()
-
-        putaran += 1
-        if cfg["repeat"] != "y" and putaran > cfg["rounds"]:
+        if all(done.get(p,False) for p in selected):
             break
 
-        await countdown(cfg["interval"])
+        await asyncio.sleep(1)
 
-with client:
-    client.loop.run_until_complete(main())
+async def run_parallel(accs):
+    status={}
+    done={}
+    failmap={a["phone"]:[] for a in accs}
+    tasks=[]
+    selected=[]
+
+    for acc in accs:
+        if acc["last_config"]!=None:
+            p=input(f"{acc['phone']} pakai config sebelumnya? (y/n): ").lower().strip()
+            cfg = acc["last_config"] if p=="y" else input_config()
+        else:
+            cfg=input_config()
+
+        acc["last_config"]=cfg
+        selected.append(acc["phone"])
+
+    save_accounts(data)
+
+    for acc in accs:
+        tasks.append(asyncio.create_task(worker(acc,acc["last_config"],status,done,failmap)))
+
+    tasks.append(asyncio.create_task(dashboard(status,selected,done,failmap)))
+    await asyncio.gather(*tasks)
+
+async def lookup_user(acc):
+    user=input("Masukkan username/ID/nomor: ").strip()
+    client=TelegramClient(None,acc["api_id"],acc["api_hash"])
+    await client.start(acc["phone"])
+
+    try:
+        ent=await client.get_entity(user)
+        full=await client(GetFullUserRequest(ent.id))
+        u=full.user
+
+        clear()
+        garis()
+        print(BLUE+"User Lookup")
+        garis()
+        print("ID        :",u.id)
+        print("Username  :",("@"+u.username) if u.username else "-")
+        print("Nama      :",u.first_name or "-")
+        print("Nomor     :",u.phone or "-")
+        print("Premium   :","Ya" if u.premium else "Tidak")
+        print("Verified  :","Ya" if u.verified else "Tidak")
+        print("Bot       :","Ya" if u.bot else "Tidak")
+        print("Scam      :","Ya" if u.scam else "Tidak")
+        print("Fake      :","Ya" if u.fake else "Tidak")
+        print("Restricted:","Ya" if u.restricted else "Tidak")
+        print("Bio       :",full.full_user.about or "-")
+        garis()
+    except Exception as e:
+        print("Gagal lookup:", e)
+
+    input("Enter untuk kembali...")
+
+async def join_process(accs):
+    links=[g.strip() for g in input("Link grup (pisah koma): ").split(",") if g.strip()]
+
+    for acc in accs:
+        client=TelegramClient(acc["session"],acc["api_id"],acc["api_hash"])
+        await client.start(acc["phone"])
+
+        for link in links:
+            try:
+                if "+" in link:
+                    code=link.split("+")[1]
+                    await client(ImportChatInviteRequest(code))
+                else:
+                    username=link.split("/")[-1]
+                    await client(JoinChannelRequest(username))
+                print(acc["phone"],"| OK |",link)
+
+            except FloodWaitError as e:
+                print(acc["phone"],"| WAIT |",e.seconds)
+                await asyncio.sleep(e.seconds)
+
+            except Exception as e:
+                print(acc["phone"],"| ERR |",link, "|", e)
+
+            await asyncio.sleep(60)
+
+if __name__ == "__main__":
+    data = load_accounts()
+
+    while True:
+        clear()
+        header()
+        garis()
+
+        print(GREEN+"[1] "+WHITE+"Jalankan 1 akun")
+        print(GREEN+"[2] "+WHITE+"Jalankan semua akun")
+        print(GREEN+"[3] "+WHITE+"Pilih beberapa akun")
+        print(GREEN+"[4] "+WHITE+"Join Grup")
+        print(GREEN+"[5] "+WHITE+"Tambah akun")
+        print(GREEN+"[6] "+WHITE+"Hapus akun")
+        print(GREEN+"[7] "+WHITE+"User Lookup")
+        print(RED+"[8] Keluar")
+
+        garis()
+        pil = input("Pilih: ").strip()
+
+        if pil == "8":
+            break
+
+        if pil == "5":
+            data["accounts"].append(tambah_akun())
+            save_accounts(data)
+            continue
+
+        if pil == "6":
+            for i,a in enumerate(data["accounts"]):
+                print(f"{i+1}. {a['phone']}")
+            h=int(input("Hapus nomor: "))-1
+            data["accounts"].pop(h)
+            save_accounts(data)
+            continue
+
+        if pil == "7":
+            for i,a in enumerate(data["accounts"]):
+                print(f"{i+1}. {a['phone']}")
+            p=int(input("Pilih akun: "))-1
+            asyncio.run(lookup_user(data["accounts"][p]))
+            continue
+
+        if pil == "1":
+            for i,a in enumerate(data["accounts"]):
+                print(f"{i+1}. {a['phone']}")
+            p=int(input("Pilih akun: "))-1
+            asyncio.run(run_parallel([data["accounts"][p]]))
+
+        if pil == "2":
+            asyncio.run(run_parallel(data["accounts"]))
+
+        if pil == "3":
+            for i,a in enumerate(data["accounts"]):
+                print(f"{i+1}. {a['phone']}")
+            ids=[int(x)-1 for x in input("Pilih (pisah koma): ").split(",")]
+            sel=[data["accounts"][i] for i in ids]
+            asyncio.run(run_parallel(sel))
+
+        if pil == "4":
+            print("1. Join 1 akun")
+            print("2. Join semua akun")
+            sub=input("Pilih: ")
+
+            if sub == "1":
+                for i,a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
+                p=int(input("Pilih akun: "))-1
+                asyncio.run(join_process([data["accounts"][p]]))
+
+            elif sub == "2":
+                asyncio.run(join_process(data["accounts"]))
