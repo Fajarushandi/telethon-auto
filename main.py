@@ -107,107 +107,116 @@ async def worker(acc,cfg,status,done,failmap):
     sent=0
     total_rounds=cfg["rounds"] if cfg["repeat"]!="y" else "∞"
 
-    while True:
-        for idx,eid in enumerate(groups):
-            url=resolved[eid]
+    try:
+        while True:
+            for idx,eid in enumerate(groups):
+                url=resolved[eid]
 
-            if sent >= 100:
-                status[acc["phone"]]["status"] = "Limit tercapai"
-                done[acc["phone"]] = True
+                if sent >= 100:
+                    status[acc["phone"]]["status"] = "Limit tercapai"
+                    done[acc["phone"]] = True
+                    await client.disconnect()
+                    return
+
+                status[acc["phone"]] = {
+                    "putaran":putaran,
+                    "total":total_rounds,
+                    "progress":f"[{bar(idx+1,len(groups))}]",
+                    "prog":f"{idx+1}/{len(groups)}",
+                    "status":"Mengirim",
+                    "group":url,
+                    "sent":sent
+                }
+
+                final_message = cfg["message"]
+
+                for attempt in range(3):
+                    try:
+                        await client.send_message(eid, final_message, parse_mode="md")
+                        sent+=1
+                        break
+                    except FloodWaitError as e:
+                        status[acc["phone"]]["status"] = f"FloodWait {e.seconds}s"
+                        await asyncio.sleep(e.seconds)
+                    except Exception as e:
+                        if attempt == 2:
+                            failmap[acc["phone"]].append((url,str(e)))
+                            log_error(f"{acc['phone']} | {url} | {str(e)}")
+                        else:
+                            await asyncio.sleep(2)
+
+                delay = random.randint(cfg["delay"], cfg["delay"]+5)
+                for s in range(delay,0,-1):
+                    status[acc["phone"]]["status"]=f"Delay {s}"
+                    await asyncio.sleep(random.uniform(0.8,1.5))
+
+            if cfg["repeat"]!="y" and putaran>=cfg["rounds"]:
+                done[acc["phone"]]=True
                 await client.disconnect()
                 return
 
-            status[acc["phone"]] = {
-                "putaran":putaran,
-                "total":total_rounds,
-                "progress":f"[{bar(idx+1,len(groups))}]",
-                "prog":f"{idx+1}/{len(groups)}",
-                "status":"Mengirim",
-                "group":url,
-                "sent":sent
-            }
+            for s in range(cfg["interval"],0,-1):
+                status[acc["phone"]] = {
+                    "putaran":putaran,
+                    "total":total_rounds,
+                    "progress":"["+"-"*20+"]",
+                    "prog":"-",
+                    "status":f"Interval {s}",
+                    "group":"-",
+                    "sent":sent
+                }
+                await asyncio.sleep(1)
 
-            final_message = cfg["message"]
+            putaran+=1
 
-            for attempt in range(3):
-                try:
-                    await client.send_message(eid, final_message, parse_mode="md")
-                    sent+=1
-                    break
-                except FloodWaitError as e:
-                    status[acc["phone"]]["status"] = f"FloodWait {e.seconds}s"
-                    await asyncio.sleep(e.seconds)
-                except Exception as e:
-                    if attempt == 2:
-                        failmap[acc["phone"]].append((url,str(e)))
-                        log_error(f"{acc['phone']} | {url} | {str(e)}")
-                    else:
-                        await asyncio.sleep(2)
-
-            delay = random.randint(cfg["delay"], cfg["delay"]+5)
-            for s in range(delay,0,-1):
-                status[acc["phone"]]["status"]=f"Delay {s}"
-                await asyncio.sleep(random.uniform(0.8,1.5))
-
-        if cfg["repeat"]!="y" and putaran>=cfg["rounds"]:
-            done[acc["phone"]]=True
-            await client.disconnect()
-            return
-
-        for s in range(cfg["interval"],0,-1):
-            status[acc["phone"]] = {
-                "putaran":putaran,
-                "total":total_rounds,
-                "progress":"["+"-"*20+"]",
-                "prog":"-",
-                "status":f"Interval {s}",
-                "group":"-",
-                "sent":sent
-            }
-            await asyncio.sleep(1)
-
-        putaran+=1
+    except asyncio.CancelledError:
+        await client.disconnect()
+        raise
 
 async def dashboard(status,selected,done,failmap):
-    while True:
-        print("\033[H\033[J",end="")
-        garis()
-        print(BLUE+"Mode Paralel — Realtime Monitor")
-        garis()
+    try:
+        while True:
+            print("\033[H\033[J",end="")
+            garis()
+            print(BLUE+"Mode Paralel — Realtime Monitor")
+            garis()
 
-        for phone in selected:
-            s=status.get(phone,{
-                "putaran":"-",
-                "total":"-",
-                "progress":"["+"-"*20+"]",
-                "prog":"-",
-                "status":"Menyiapkan",
-                "group":"-",
-                "sent":"-"
-            })
+            for phone in selected:
+                s=status.get(phone,{
+                    "putaran":"-",
+                    "total":"-",
+                    "progress":"["+"-"*20+"]",
+                    "prog":"-",
+                    "status":"Menyiapkan",
+                    "group":"-",
+                    "sent":"-"
+                })
 
-            status_text = s["status"]
-            if "Delay" in status_text:
-                color = YELLOW
-            elif "FloodWait" in status_text:
-                color = RED
-            elif "Mengirim" in status_text:
-                color = GREEN
-            else:
-                color = WHITE
+                status_text = s["status"]
+                if "Delay" in status_text:
+                    color = YELLOW
+                elif "FloodWait" in status_text:
+                    color = RED
+                elif "Mengirim" in status_text:
+                    color = GREEN
+                else:
+                    color = WHITE
 
-            print(BLUE + f"┌─ {phone}")
-            print(f"│ Putaran : {YELLOW}{s['putaran']} / {s['total']}")
-            print(f"│ Progress: {GREEN}{s['progress']} {s['prog']}")
-            print(f"│ Status  : {color}{status_text}")
-            print(f"│ Grup    : {s['group']}")
-            print(f"│ Terkirim: {GREEN}{s['sent']}")
-            print(BLUE + "└" + "─"*(get_width()-1))
+                print(BLUE + f"┌─ {phone}")
+                print(f"│ Putaran : {YELLOW}{s['putaran']} / {s['total']}")
+                print(f"│ Progress: {GREEN}{s['progress']} {s['prog']}")
+                print(f"│ Status  : {color}{status_text}")
+                print(f"│ Grup    : {s['group']}")
+                print(f"│ Terkirim: {GREEN}{s['sent']}")
+                print(BLUE + "└" + "─"*(get_width()-1))
 
-        if all(done.get(p,False) for p in selected):
-            break
+            if all(done.get(p,False) for p in selected):
+                break
 
-        await asyncio.sleep(1)
+            await asyncio.sleep(1)
+
+    except asyncio.CancelledError:
+        return
 
 async def run_parallel(accs):
     status={}
@@ -232,7 +241,13 @@ async def run_parallel(accs):
         tasks.append(asyncio.create_task(worker(acc,acc["last_config"],status,done,failmap)))
 
     tasks.append(asyncio.create_task(dashboard(status,selected,done,failmap)))
-    await asyncio.gather(*tasks)
+
+    try:
+        await asyncio.gather(*tasks)
+    except asyncio.CancelledError:
+        for t in tasks:
+            t.cancel()
+        raise
 
 async def lookup_user(acc):
     user=input("Masukkan username/ID/nomor: ").strip()
@@ -311,55 +326,56 @@ if __name__ == "__main__":
         garis()
         pil = input("Pilih: ").strip()
 
-        if pil == "8":
-            break
+        try:
+            if pil == "8":
+                break
 
-        if pil == "5":
-            data["accounts"].append(tambah_akun())
-            save_accounts(data)
-            continue
+            elif pil == "5":
+                data["accounts"].append(tambah_akun())
+                save_accounts(data)
 
-        if pil == "6":
-            for i,a in enumerate(data["accounts"]):
-                print(f"{i+1}. {a['phone']}")
-            h=int(input("Hapus nomor: "))-1
-            data["accounts"].pop(h)
-            save_accounts(data)
-            continue
+            elif pil == "6":
+                for i,a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
+                h=int(input("Hapus nomor: "))-1
+                data["accounts"].pop(h)
+                save_accounts(data)
 
-        if pil == "7":
-            for i,a in enumerate(data["accounts"]):
-                print(f"{i+1}. {a['phone']}")
-            p=int(input("Pilih akun: "))-1
-            asyncio.run(lookup_user(data["accounts"][p]))
-            continue
-
-        if pil == "1":
-            for i,a in enumerate(data["accounts"]):
-                print(f"{i+1}. {a['phone']}")
-            p=int(input("Pilih akun: "))-1
-            asyncio.run(run_parallel([data["accounts"][p]]))
-
-        if pil == "2":
-            asyncio.run(run_parallel(data["accounts"]))
-
-        if pil == "3":
-            for i,a in enumerate(data["accounts"]):
-                print(f"{i+1}. {a['phone']}")
-            ids=[int(x)-1 for x in input("Pilih (pisah koma): ").split(",")]
-            sel=[data["accounts"][i] for i in ids]
-            asyncio.run(run_parallel(sel))
-
-        if pil == "4":
-            print("1. Join 1 akun")
-            print("2. Join semua akun")
-            sub=input("Pilih: ")
-
-            if sub == "1":
+            elif pil == "7":
                 for i,a in enumerate(data["accounts"]):
                     print(f"{i+1}. {a['phone']}")
                 p=int(input("Pilih akun: "))-1
-                asyncio.run(join_process([data["accounts"][p]]))
+                asyncio.run(lookup_user(data["accounts"][p]))
 
-            elif sub == "2":
-                asyncio.run(join_process(data["accounts"]))
+            elif pil == "1":
+                for i,a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
+                p=int(input("Pilih akun: "))-1
+                asyncio.run(run_parallel([data["accounts"][p]]))
+
+            elif pil == "2":
+                asyncio.run(run_parallel(data["accounts"]))
+
+            elif pil == "3":
+                for i,a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
+                ids=[int(x)-1 for x in input("Pilih (pisah koma): ").split(",")]
+                sel=[data["accounts"][i] for i in ids]
+                asyncio.run(run_parallel(sel))
+
+            elif pil == "4":
+                print("1. Join 1 akun")
+                print("2. Join semua akun")
+                sub=input("Pilih: ")
+
+                if sub == "1":
+                    for i,a in enumerate(data["accounts"]):
+                        print(f"{i+1}. {a['phone']}")
+                    p=int(input("Pilih akun: "))-1
+                    asyncio.run(join_process([data["accounts"][p]]))
+
+                elif sub == "2":
+                    asyncio.run(join_process(data["accounts"]))
+
+        except KeyboardInterrupt:
+            print("\n"+RED+"Dihentikan oleh user.\n")
