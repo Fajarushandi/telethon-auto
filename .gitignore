@@ -1,0 +1,4 @@
+*.session
+accounts.json
+error.log
+main.py.save
