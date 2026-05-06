@@ -19,7 +19,10 @@ Script otomatis kirim pesan ke banyak grup Telegram via Termux menggunakan **Tel
 
 Tampilan saat script sedang berjalan:
 
-<img src="preview.jpg" width="350">
+<p align="center">
+  <img src="preview1.jpg" width="300">
+  <img src="preview2.jpg" width="300">
+</p>
 
 ---
 
