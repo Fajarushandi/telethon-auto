@@ -22,7 +22,7 @@ YELLOW = Fore.YELLOW
 WHITE = Fore.WHITE
 
 config_file = "accounts.json"
-
+dead_groups_file = "dead_groups.json"
 
 def get_width():
     try:
@@ -57,6 +57,7 @@ def load_accounts():
 
 
 def save_accounts(d):
+
     with open(config_file, "w") as f:
         json.dump(
             d,
@@ -66,6 +67,25 @@ def save_accounts(d):
         )
 
 
+def load_dead_groups():
+
+    if not os.path.exists(dead_groups_file):
+        return []
+
+    with open(dead_groups_file, "r") as f:
+        return json.load(f)
+
+
+def save_dead_groups(groups):
+
+    with open(dead_groups_file, "w") as f:
+        json.dump(
+            groups,
+            f,
+            indent=4,
+            ensure_ascii=False
+        )
+        
 def log_error(text):
     with open("error.log", "a") as f:
         waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -181,17 +201,44 @@ async def worker(acc, cfg, status, done, failmap):
         done[acc["phone"]] = True
         return
 
+    # --- PERBAIKAN INDENTASI DIMULAI ---
     resolved = {}
+
+    dead_groups = load_dead_groups()
 
     for url in cfg["groups"]:
 
+        if url in dead_groups:
+
+            print(f"SKIP DEAD GROUP: {url}")
+
+            continue
+
         try:
+
             ent = await client.get_entity(url)
+
             resolved[ent.id] = url
 
         except Exception as e:
 
-            failmap[acc["phone"]].append((url, str(e)))
+            err = str(e).lower()
+
+            if (
+                "cannot find" in err
+                or "invalid" in err
+                or "username not occupied" in err
+            ):
+
+                if url not in dead_groups:
+
+                    dead_groups.append(url)
+
+                    save_dead_groups(dead_groups)
+
+            failmap[acc["phone"]].append(
+                (url, str(e))
+            )
 
             log_error(
                 f"{acc['phone']} | {url} | {str(e)}"
@@ -298,9 +345,7 @@ async def worker(acc, cfg, status, done, failmap):
                         f"Delay {s}"
                     )
 
-                    await asyncio.sleep(
-                        random.uniform(0.8, 1.5)
-                    )
+                    await asyncio.sleep(1)
 
             if (
                 cfg["repeat"] != "y"
@@ -429,7 +474,7 @@ async def dashboard(status, selected, done, failmap):
         return
 
 
-async def run_parallel(accs):
+async def run_parallel(accs, data_reference):
 
     status = {}
     done = {}
@@ -463,7 +508,8 @@ async def run_parallel(accs):
         acc["last_config"] = cfg
         selected.append(acc["phone"])
 
-    save_accounts(data)
+    # Perbaikan: Menggunakan parameter data_reference
+    save_accounts(data_reference)
 
     for acc in accs:
 
@@ -585,6 +631,7 @@ async def lookup_user(acc):
     except Exception as e:
         print("Gagal lookup:", e)
 
+    await client.disconnect()
     input("Enter untuk kembali...")
 
 
@@ -655,6 +702,8 @@ async def join_process(accs):
                 )
 
             await asyncio.sleep(60)
+        
+        await client.disconnect()
 
 
 if __name__ == "__main__":
@@ -726,97 +775,181 @@ if __name__ == "__main__":
 
             elif pil == "6":
 
-                for i, a in enumerate(data["accounts"]):
-                    print(f"{i+1}. {a['phone']}")
+    for i, a in enumerate(data["accounts"]):
+        print(f"{i+1}. {a['phone']}")
 
-                h = int(
-                    input("Hapus nomor: ")
-                ) - 1
+    pilih = input(
+        "Hapus nomor (Enter untuk kembali): "
+    ).strip()
 
-                data["accounts"].pop(h)
+    if not pilih:
+        continue
 
-                save_accounts(data)
+    if not pilih.isdigit():
+        print("Input harus angka")
+        input("Enter...")
+        continue
+
+    h = int(pilih) - 1
+
+    if h < 0 or h >= len(data["accounts"]):
+        print("Akun tidak valid")
+        input("Enter...")
+        continue
+
+    data["accounts"].pop(h)
+
+    save_accounts(data)
 
             elif pil == "7":
 
-                for i, a in enumerate(data["accounts"]):
-                    print(f"{i+1}. {a['phone']}")
+    for i, a in enumerate(data["accounts"]):
+        print(f"{i+1}. {a['phone']}")
 
-                p = int(
-                    input("Pilih akun: ")
-                ) - 1
+    pilih = input(
+        "Pilih akun (Enter untuk kembali): "
+    ).strip()
 
-                asyncio.run(
-                    lookup_user(
-                        data["accounts"][p]
-                    )
-                )
+    if not pilih:
+        continue
+
+    if not pilih.isdigit():
+        print("Input harus angka")
+        input("Enter...")
+        continue
+
+    p = int(pilih) - 1
+
+    if p < 0 or p >= len(data["accounts"]):
+        print("Akun tidak valid")
+        input("Enter...")
+        continue
+
+    asyncio.run(
+        lookup_user(
+            data["accounts"][p]
+        )
+    )
 
             elif pil == "1":
 
-                for i, a in enumerate(data["accounts"]):
-                    print(f"{i+1}. {a['phone']}")
+    for i, a in enumerate(data["accounts"]):
+        print(f"{i+1}. {a['phone']}")
 
-                p = int(
-                    input("Pilih akun: ")
-                ) - 1
+    pilih = input(
+        "Pilih akun (Enter untuk kembali): "
+    ).strip()
 
-                asyncio.run(
-                    run_parallel(
-                        [data["accounts"][p]]
-                    )
-                )
+    if not pilih:
+        continue
+
+    if not pilih.isdigit():
+        print("Input harus angka")
+        input("Enter...")
+        continue
+
+    p = int(pilih) - 1
+
+    if p < 0 or p >= len(data["accounts"]):
+        print("Akun tidak valid")
+        input("Enter...")
+        continue
+
+    asyncio.run(
+        run_parallel(
+            [data["accounts"][p]],
+            data
+        )
+    )
 
             elif pil == "2":
 
                 asyncio.run(
                     run_parallel(
-                        data["accounts"]
+                        data["accounts"],
+                        data
                     )
                 )
 
             elif pil == "3":
 
-                for i, a in enumerate(data["accounts"]):
-                    print(f"{i+1}. {a['phone']}")
+    for i, a in enumerate(data["accounts"]):
+        print(f"{i+1}. {a['phone']}")
 
-                ids = [
-                    int(x)-1
-                    for x in input(
-                        "Pilih (pisah koma): "
-                    ).split(",")
-                ]
+    raw = input(
+        "Pilih (pisah koma, Enter untuk kembali): "
+    ).strip()
 
-                sel = [
-                    data["accounts"][i]
-                    for i in ids
-                ]
+    if not raw:
+        continue
 
-                asyncio.run(
-                    run_parallel(sel)
-                )
+    try:
+
+        ids = [
+            int(x.strip()) - 1
+            for x in raw.split(",")
+        ]
+
+        sel = [
+            data["accounts"][i]
+            for i in ids
+            if 0 <= i < len(data["accounts"])
+        ]
+
+        if not sel:
+            print("Tidak ada akun valid")
+            input("Enter...")
+            continue
+
+        asyncio.run(
+            run_parallel(sel, data)
+        )
+
+    except:
+        print("Format salah")
+        input("Enter...")
 
             elif pil == "4":
 
                 print("1. Join 1 akun")
                 print("2. Join semua akun")
 
-                sub = input("Pilih: ")
+                sub = input(
+    "Pilih (Enter untuk kembali): "
+).strip()
+
+if not sub:
+    continue
 
                 if sub == "1":
 
-                    for i, a in enumerate(data["accounts"]):
-                        print(f"{i+1}. {a['phone']}")
+for i, a in enumerate(data["accounts"]):
+    print(f"{i+1}. {a['phone']}")
 
-                    p = int(
-                        input("Pilih akun: ")
-                    ) - 1
+pilih = input(
+    "Pilih akun (Enter untuk kembali): "
+).strip()
 
-                    asyncio.run(
-                        join_process(
-                            [data["accounts"][p]]
-                        )
-                    )
+if not pilih:
+    continue
+
+if not pilih.isdigit():
+    print("Input harus angka")
+    input("Enter...")
+    continue
+
+p = int(pilih) - 1
+
+if p < 0 or p >= len(data["accounts"]):
+    print("Akun tidak valid")
+    input("Enter...")
+    continue
+
+asyncio.run(
+    join_process(
+        [data["accounts"][p]]
+    )
+)
 
                 elif sub == "2":
 
@@ -832,4 +965,4 @@ if __name__ == "__main__":
                 "\n" +
                 RED +
                 "Dihentikan oleh user.\n"
-                )
+            )
