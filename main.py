@@ -663,6 +663,32 @@ async def lookup_user(acc):
             "Ya" if u.restricted else "Tidak"
         )
 
+        status_user = getattr(
+            u,
+            "status",
+            None
+        )
+
+        if status_user:
+
+            status_name = (
+                status_user.__class__.__name__
+            )
+
+            status_name = status_name.replace(
+                "UserStatus",
+                ""
+            )
+
+        else:
+
+            status_name = "Unknown"
+
+        print(
+            "Last Seen :",
+            status_name
+        )
+
         print(
             "Bio       :",
             full.full_user.about or "-"
