@@ -130,7 +130,9 @@ def input_config():
 
     msg = []
 
-    print("Pesan (END untuk selesai):")
+    print("Tulis pesan per baris")
+    print("Tekan Enter lalu ketik END untuk selesai")
+    print()
 
     while True:
         t = input()
