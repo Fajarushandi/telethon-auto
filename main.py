@@ -1,8 +1,8 @@
 from telethon import TelegramClient
-from telethon.errors import FloodWaitError
+from telethon.errors import FloodWaitError, UserNotParticipantError
 from telethon.tl.functions.messages import ImportChatInviteRequest
 from telethon.tl.functions.users import GetFullUserRequest
-from telethon.tl.functions.channels import JoinChannelRequest
+from telethon.tl.functions.channels import JoinChannelRequest, GetParticipantRequest
 
 import asyncio
 import json
@@ -27,7 +27,7 @@ dead_groups_file = "dead_groups.json"
 def get_width():
     try:
         return shutil.get_terminal_size().columns
-    except:
+    except Exception:
         return 60
 
 
@@ -100,7 +100,14 @@ def tambah_akun():
 
     garis()
 
-    api_id = int(input("API ID: "))
+    try:
+        api_id = int(input("API ID: "))
+
+    except ValueError:
+        print("API ID harus angka")
+        input("Enter untuk kembali...")
+        return None
+
     api_hash = input("API HASH: ")
     phone = input("Nomor (+62): ")
 
@@ -113,7 +120,6 @@ def tambah_akun():
         "session": session,
         "last_config": None
     }
-
 
 def input_config():
     clear()
@@ -142,17 +148,17 @@ def input_config():
 
     try:
         delay = int(input("Delay: "))
-    except:
+    except Exception:
         delay = 10
 
     try:
         interval = int(input("Interval: "))
-    except:
+    except Exception:
         interval = 60
 
     try:
         rounds = int(input("Putaran: "))
-    except:
+    except Exception:
         rounds = 1
 
     repeat = input("Loop? (y/n): ").lower().strip()
@@ -182,7 +188,7 @@ async def worker(acc, cfg, status, done, failmap):
         acc["session"],
         acc["api_id"],
         acc["api_hash"]
-    )
+       )
 
     await client.start(acc["phone"])
 
@@ -246,6 +252,22 @@ async def worker(acc, cfg, status, done, failmap):
 
     groups = list(resolved.keys())
 
+    if not groups:
+        status[acc["phone"]] = {
+            "putaran": "-",
+            "total": "-",
+            "progress": "[" + "-" * 20 + "]",
+            "prog": "-",
+            "status": "Tidak ada grup valid",
+            "group": "-",
+            "sent": 0
+        }
+
+        done[acc["phone"]] = True
+
+        await client.disconnect()
+        return
+
     putaran = 1
     sent = 0
 
@@ -299,10 +321,13 @@ async def worker(acc, cfg, status, done, failmap):
                         if key in sent_cache:
                             continue
 
-                        await client.send_message(
-                            eid,
-                            final_message,
-                            parse_mode="md"
+                        await asyncio.wait_for(
+                            client.send_message(
+                               eid,
+                               final_message,
+                               parse_mode="md"
+                            ),
+                            timeout=20
                         )
 
                         sent_cache.add(key)
@@ -317,6 +342,18 @@ async def worker(acc, cfg, status, done, failmap):
                         )
 
                         await asyncio.sleep(e.seconds)
+                        
+                    except asyncio.TimeoutError:
+
+                        status[acc["phone"]]["status"] = (
+                            "Timeout"
+                        )
+
+                        log_error(
+                            f"{acc['phone']} | timeout | {url}"
+                        )
+
+                        await asyncio.sleep(5)
 
                     except Exception as e:
 
@@ -340,13 +377,13 @@ async def worker(acc, cfg, status, done, failmap):
                 )
 
                 for s in range(delay_random, 0, -1):
-
                     status[acc["phone"]]["status"] = (
                         f"Delay {s}"
                     )
 
-                    await asyncio.sleep(1)
-
+                    await asyncio.sleep(
+                        random.uniform(1.5, 3.5)
+                    )
             if (
                 cfg["repeat"] != "y"
                 and putaran >= cfg["rounds"]
@@ -393,7 +430,12 @@ async def worker(acc, cfg, status, done, failmap):
                 "group": "-",
                 "sent": sent
             }
-
+            
+            try:
+                await client.connect()
+            except:
+                pass              
+                
             await asyncio.sleep(10)
 
 
@@ -403,7 +445,7 @@ async def dashboard(status, selected, done, failmap):
 
         while True:
 
-            print("\033[H\033[J", end="")
+            os.system("clear")
 
             garis()
 
@@ -554,10 +596,10 @@ async def lookup_user(acc):
     ).strip()
 
     client = TelegramClient(
-        None,
-        acc["api_id"],
-        acc["api_hash"]
-    )
+         acc["session"],
+         acc["api_id"],
+         acc["api_hash"]
+        )
 
     await client.start(acc["phone"])
 
@@ -657,55 +699,162 @@ async def join_process(accs):
 
         for link in links:
 
+            if (
+                not link.startswith("https://t.me/")
+                and not link.startswith("t.me/")
+            ):
+                print(acc["phone"], "| SKIP | link tidak valid:", link)
+                continue
+
+            try:
+                if "+" in link:
+                    code = link.split("+")[1]
+                    await client(ImportChatInviteRequest(code))
+                else:
+                    username = link.split("/")[-1]
+                    await client(JoinChannelRequest(username))
+
+                print(acc["phone"], "| OK |", link)
+
+            except FloodWaitError as e:
+                print(acc["phone"], "| WAIT |", e.seconds)
+                await asyncio.sleep(e.seconds)
+
+            except Exception as e:
+                print(acc["phone"], "| ERR |", link, "|", e)
+
+            delay_join = random.randint(30, 120)
+            
+            print(
+               acc["phone"],
+               "| Delay |",
+               f"{delay_join}s"
+            )   
+        
+            await asyncio.sleep(delay_join)
+            
+        await client.disconnect()
+
+async def cek_grup_process(acc):
+
+    raw = input(
+        "Masukkan link/username grup (pisah koma): "
+    ).strip()
+
+    groups = [
+        g.strip()
+        for g in raw.split(",")
+        if g.strip()
+    ]
+
+    if not groups:
+        print("Tidak ada grup")
+        input("Enter...")
+        return
+
+    client = TelegramClient(
+        acc["session"],
+        acc["api_id"],
+        acc["api_hash"]
+    )
+
+    await client.start(acc["phone"])
+
+    for link in groups:
+
+        try:
+
+            entity = await client.get_entity(link)
+
             try:
 
-                if "+" in link:
+                await client(
+                    GetParticipantRequest(
+                        entity,
+                        "me"
+                    )
+                )
 
-                    code = link.split("+")[1]
+                banned_rights = getattr(
+                    entity,
+                    "default_banned_rights",
+                    None
+                )
 
-                    await client(
-                        ImportChatInviteRequest(code)
+                if (
+                    banned_rights
+                    and getattr(
+                        banned_rights,
+                        "send_messages",
+                        False
+                    )
+                ):
+
+                    print(
+                        acc["phone"],
+                        "| NO_SEND_PERMISSION |",
+                        link
                     )
 
                 else:
 
-                    username = link.split("/")[-1]
-
-                    await client(
-                        JoinChannelRequest(username)
+                    print(
+                        acc["phone"],
+                        "| VALID_JOINED |",
+                        link
                     )
+
+            except UserNotParticipantError:
 
                 print(
                     acc["phone"],
-                    "| OK |",
+                    "| NOT_JOIN |",
                     link
                 )
 
-            except FloodWaitError as e:
+        except Exception as e:
+
+            err = str(e).lower()
+
+            if (
+                "cannot find" in err
+                or "invalid" in err
+                or "username not occupied" in err
+            ):
 
                 print(
                     acc["phone"],
-                    "| WAIT |",
-                    e.seconds
+                    "| DEAD |",
+                    link
                 )
 
-                await asyncio.sleep(e.seconds)
-
-            except Exception as e:
+            elif (
+                "private" in err
+                or "forbidden" in err
+            ):
 
                 print(
                     acc["phone"],
-                    "| ERR |",
+                    "| PRIVATE_NO_ACCESS |",
+                    link
+                )
+
+            else:
+
+                print(
+                    acc["phone"],
+                    "| UNKNOWN_ERROR |",
                     link,
                     "|",
                     e
                 )
 
-            await asyncio.sleep(60)
-        
-        await client.disconnect()
+        await asyncio.sleep(2)
 
+    await client.disconnect()
 
+    input("Enter untuk kembali...")
+    
 if __name__ == "__main__":
 
     data = load_accounts()
@@ -717,44 +866,15 @@ if __name__ == "__main__":
         header()
         garis()
 
-        print(
-            GREEN + "[1] " +
-            WHITE + "Jalankan 1 akun"
-        )
-
-        print(
-            GREEN + "[2] " +
-            WHITE + "Jalankan semua akun"
-        )
-
-        print(
-            GREEN + "[3] " +
-            WHITE + "Pilih beberapa akun"
-        )
-
-        print(
-            GREEN + "[4] " +
-            WHITE + "Join Grup"
-        )
-
-        print(
-            GREEN + "[5] " +
-            WHITE + "Tambah akun"
-        )
-
-        print(
-            GREEN + "[6] " +
-            WHITE + "Hapus akun"
-        )
-
-        print(
-            GREEN + "[7] " +
-            WHITE + "User Lookup"
-        )
-
-        print(
-            RED + "[0] Keluar"
-        )
+        print(GREEN + "[1] " + WHITE + "Jalankan 1 akun")
+        print(GREEN + "[2] " + WHITE + "Jalankan semua akun")
+        print(GREEN + "[3] " + WHITE + "Pilih beberapa akun")
+        print(GREEN + "[4] " + WHITE + "Join Grup")
+        print(GREEN + "[5] " + WHITE + "Tambah akun")
+        print(GREEN + "[6] " + WHITE + "Hapus akun")
+        print(GREEN + "[7] " + WHITE + "User Lookup")
+        print(GREEN + "[8] " + WHITE + "Cek Status Grup")
+        print(RED + "[0] Keluar")
 
         garis()
 
@@ -767,102 +887,137 @@ if __name__ == "__main__":
 
             elif pil == "5":
 
-                data["accounts"].append(
-                    tambah_akun()
-                )
+                akun = tambah_akun()
 
-                save_accounts(data)
+                if akun:
+                    data["accounts"].append(akun)
+                    save_accounts(data)
 
             elif pil == "6":
 
-    for i, a in enumerate(data["accounts"]):
-        print(f"{i+1}. {a['phone']}")
+                for i, a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
 
-    pilih = input(
-        "Hapus nomor (Enter untuk kembali): "
-    ).strip()
+                pilih = input(
+                    "Hapus nomor (Enter untuk kembali): "
+                ).strip()
 
-    if not pilih:
-        continue
+                if not pilih:
+                    continue
 
-    if not pilih.isdigit():
-        print("Input harus angka")
-        input("Enter...")
-        continue
+                if not pilih.isdigit():
+                    print("Input harus angka")
+                    input("Enter...")
+                    continue
 
-    h = int(pilih) - 1
+                h = int(pilih) - 1
 
-    if h < 0 or h >= len(data["accounts"]):
-        print("Akun tidak valid")
-        input("Enter...")
-        continue
+                if h < 0 or h >= len(data["accounts"]):
+                    print("Akun tidak valid")
+                    input("Enter...")
+                    continue
 
-    data["accounts"].pop(h)
+                data["accounts"].pop(h)
 
-    save_accounts(data)
+                save_accounts(data)
 
             elif pil == "7":
 
-    for i, a in enumerate(data["accounts"]):
-        print(f"{i+1}. {a['phone']}")
+                for i, a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
 
-    pilih = input(
-        "Pilih akun (Enter untuk kembali): "
-    ).strip()
+                pilih = input(
+                    "Pilih akun (Enter untuk kembali): "
+                ).strip()
 
-    if not pilih:
-        continue
+                if not pilih:
+                    continue
 
-    if not pilih.isdigit():
-        print("Input harus angka")
-        input("Enter...")
-        continue
+                if not pilih.isdigit():
+                    print("Input harus angka")
+                    input("Enter...")
+                    continue
 
-    p = int(pilih) - 1
+                p = int(pilih) - 1
 
-    if p < 0 or p >= len(data["accounts"]):
-        print("Akun tidak valid")
-        input("Enter...")
-        continue
+                if p < 0 or p >= len(data["accounts"]):
+                    print("Akun tidak valid")
+                    input("Enter...")
+                    continue
 
-    asyncio.run(
-        lookup_user(
-            data["accounts"][p]
-        )
-    )
+                asyncio.run(
+                    lookup_user(
+                        data["accounts"][p]
+                    )
+                )
+            
+            elif pil == "8":
 
+                for i, a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
+
+                pilih = input(
+                    "Pilih akun (Enter untuk kembali): "
+                ).strip()
+
+                if not pilih:
+                    continue
+
+                if not pilih.isdigit():
+                    print("Input harus angka")
+                    input("Enter...")
+                    continue
+
+                p = int(pilih) - 1
+
+                if p < 0 or p >= len(data["accounts"]):
+                    print("Akun tidak valid")
+                    input("Enter...")
+                    continue
+
+                asyncio.run(
+                    cek_grup_process(
+                        data["accounts"][p]
+                    )
+                )
+            
             elif pil == "1":
 
-    for i, a in enumerate(data["accounts"]):
-        print(f"{i+1}. {a['phone']}")
+                for i, a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
 
-    pilih = input(
-        "Pilih akun (Enter untuk kembali): "
-    ).strip()
+                pilih = input(
+                    "Pilih akun (Enter untuk kembali): "
+                ).strip()
 
-    if not pilih:
-        continue
+                if not pilih:
+                    continue
 
-    if not pilih.isdigit():
-        print("Input harus angka")
-        input("Enter...")
-        continue
+                if not pilih.isdigit():
+                    print("Input harus angka")
+                    input("Enter...")
+                    continue
 
-    p = int(pilih) - 1
+                p = int(pilih) - 1
 
-    if p < 0 or p >= len(data["accounts"]):
-        print("Akun tidak valid")
-        input("Enter...")
-        continue
+                if p < 0 or p >= len(data["accounts"]):
+                    print("Akun tidak valid")
+                    input("Enter...")
+                    continue
 
-    asyncio.run(
-        run_parallel(
-            [data["accounts"][p]],
-            data
-        )
-    )
+                asyncio.run(
+                    run_parallel(
+                        [data["accounts"][p]],
+                        data
+                    )
+                )
 
             elif pil == "2":
+
+                if not data["accounts"]:
+                    print("Belum ada akun")
+                    input("Enter...")
+                    continue
 
                 asyncio.run(
                     run_parallel(
@@ -873,41 +1028,41 @@ if __name__ == "__main__":
 
             elif pil == "3":
 
-    for i, a in enumerate(data["accounts"]):
-        print(f"{i+1}. {a['phone']}")
+                for i, a in enumerate(data["accounts"]):
+                    print(f"{i+1}. {a['phone']}")
 
-    raw = input(
-        "Pilih (pisah koma, Enter untuk kembali): "
-    ).strip()
+                raw = input(
+                    "Pilih (pisah koma, Enter untuk kembali): "
+                ).strip()
 
-    if not raw:
-        continue
+                if not raw:
+                    continue
 
-    try:
+                try:
 
-        ids = [
-            int(x.strip()) - 1
-            for x in raw.split(",")
-        ]
+                    ids = [
+                        int(x.strip()) - 1
+                        for x in raw.split(",")
+                    ]
 
-        sel = [
-            data["accounts"][i]
-            for i in ids
-            if 0 <= i < len(data["accounts"])
-        ]
+                    sel = [
+                        data["accounts"][i]
+                        for i in ids
+                        if 0 <= i < len(data["accounts"])
+                    ]
 
-        if not sel:
-            print("Tidak ada akun valid")
-            input("Enter...")
-            continue
+                    if not sel:
+                        print("Tidak ada akun valid")
+                        input("Enter...")
+                        continue
 
-        asyncio.run(
-            run_parallel(sel, data)
-        )
+                    asyncio.run(
+                        run_parallel(sel, data)
+                    )
 
-    except:
-        print("Format salah")
-        input("Enter...")
+                except Exception:
+                    print("Format salah")
+                    input("Enter...")
 
             elif pil == "4":
 
@@ -915,41 +1070,41 @@ if __name__ == "__main__":
                 print("2. Join semua akun")
 
                 sub = input(
-    "Pilih (Enter untuk kembali): "
-).strip()
+                    "Pilih (Enter untuk kembali): "
+                ).strip()
 
-if not sub:
-    continue
+                if not sub:
+                    continue
 
                 if sub == "1":
 
-for i, a in enumerate(data["accounts"]):
-    print(f"{i+1}. {a['phone']}")
+                    for i, a in enumerate(data["accounts"]):
+                        print(f"{i+1}. {a['phone']}")
 
-pilih = input(
-    "Pilih akun (Enter untuk kembali): "
-).strip()
+                    pilih = input(
+                        "Pilih akun (Enter untuk kembali): "
+                    ).strip()
 
-if not pilih:
-    continue
+                    if not pilih:
+                        continue
 
-if not pilih.isdigit():
-    print("Input harus angka")
-    input("Enter...")
-    continue
+                    if not pilih.isdigit():
+                        print("Input harus angka")
+                        input("Enter...")
+                        continue
 
-p = int(pilih) - 1
+                    p = int(pilih) - 1
 
-if p < 0 or p >= len(data["accounts"]):
-    print("Akun tidak valid")
-    input("Enter...")
-    continue
+                    if p < 0 or p >= len(data["accounts"]):
+                        print("Akun tidak valid")
+                        input("Enter...")
+                        continue
 
-asyncio.run(
-    join_process(
-        [data["accounts"][p]]
-    )
-)
+                    asyncio.run(
+                        join_process(
+                            [data["accounts"][p]]
+                        )
+                    )
 
                 elif sub == "2":
 
