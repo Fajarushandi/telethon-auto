@@ -592,7 +592,7 @@ async def run_parallel(accs, data_reference):
 async def lookup_user(acc):
 
     user = input(
-        "Masukkan username/ID/nomor: "
+        "Masukkan username (@user) atau nomor (+62): "
     ).strip()
 
     client = TelegramClient(
@@ -611,7 +611,7 @@ async def lookup_user(acc):
             GetFullUserRequest(ent.id)
         )
 
-        u = full.user
+        u = ent
 
         clear()
 
