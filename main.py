@@ -24,6 +24,7 @@ WHITE = Fore.WHITE
 config_file = "accounts.json"
 dead_groups_file = "dead_groups.json"
 
+
 def get_width():
     try:
         return shutil.get_terminal_size().columns
@@ -59,12 +60,7 @@ def load_accounts():
 def save_accounts(d):
 
     with open(config_file, "w") as f:
-        json.dump(
-            d,
-            f,
-            indent=4,
-            ensure_ascii=False
-        )
+        json.dump(d, f, indent=4, ensure_ascii=False)
 
 
 def load_dead_groups():
@@ -79,13 +75,9 @@ def load_dead_groups():
 def save_dead_groups(groups):
 
     with open(dead_groups_file, "w") as f:
-        json.dump(
-            groups,
-            f,
-            indent=4,
-            ensure_ascii=False
-        )
-        
+        json.dump(groups, f, indent=4, ensure_ascii=False)
+
+
 def log_error(text):
     with open("error.log", "a") as f:
         waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -118,8 +110,9 @@ def tambah_akun():
         "api_id": api_id,
         "api_hash": api_hash,
         "session": session,
-        "last_config": None
+        "last_config": None,
     }
+
 
 def input_config():
     clear()
@@ -142,11 +135,7 @@ def input_config():
 
         msg.append(t)
 
-    groups = [
-        g.strip()
-        for g in input("Grup (pisah koma): ").split(",")
-        if g.strip()
-    ]
+    groups = [g.strip() for g in input("Grup (pisah koma): ").split(",") if g.strip()]
 
     try:
         delay = int(input("Delay: "))
@@ -171,7 +160,7 @@ def input_config():
         "delay": delay,
         "interval": interval,
         "rounds": rounds,
-        "repeat": repeat
+        "repeat": repeat,
     }
 
 
@@ -186,11 +175,7 @@ def bar(cur, total):
 
 async def worker(acc, cfg, status, done, failmap):
 
-    client = TelegramClient(
-        acc["session"],
-        acc["api_id"],
-        acc["api_hash"]
-       )
+    client = TelegramClient(acc["session"], acc["api_id"], acc["api_hash"])
 
     await client.start(acc["phone"])
 
@@ -203,7 +188,7 @@ async def worker(acc, cfg, status, done, failmap):
             "prog": "-",
             "status": "Session logout",
             "group": "-",
-            "sent": "-"
+            "sent": "-",
         }
 
         done[acc["phone"]] = True
@@ -244,13 +229,9 @@ async def worker(acc, cfg, status, done, failmap):
 
                     save_dead_groups(dead_groups)
 
-            failmap[acc["phone"]].append(
-                (url, str(e))
-            )
+            failmap[acc["phone"]].append((url, str(e)))
 
-            log_error(
-                f"{acc['phone']} | {url} | {str(e)}"
-            )
+            log_error(f"{acc['phone']} | {url} | {str(e)}")
 
     groups = list(resolved.keys())
 
@@ -262,7 +243,7 @@ async def worker(acc, cfg, status, done, failmap):
             "prog": "-",
             "status": "Tidak ada grup valid",
             "group": "-",
-            "sent": 0
+            "sent": 0,
         }
 
         done[acc["phone"]] = True
@@ -275,11 +256,7 @@ async def worker(acc, cfg, status, done, failmap):
 
     sent_cache = set()
 
-    total_rounds = (
-        cfg["rounds"]
-        if cfg["repeat"] != "y"
-        else "∞"
-    )
+    total_rounds = cfg["rounds"] if cfg["repeat"] != "y" else "∞"
 
     while True:
 
@@ -291,9 +268,7 @@ async def worker(acc, cfg, status, done, failmap):
 
                 if sent >= 100:
 
-                    status[acc["phone"]]["status"] = (
-                        "Limit tercapai"
-                    )
+                    status[acc["phone"]]["status"] = "Limit tercapai"
 
                     done[acc["phone"]] = True
 
@@ -303,13 +278,11 @@ async def worker(acc, cfg, status, done, failmap):
                 status[acc["phone"]] = {
                     "putaran": putaran,
                     "total": total_rounds,
-                    "progress": (
-                        f"[{bar(idx+1,len(groups))}]"
-                    ),
+                    "progress": (f"[{bar(idx+1,len(groups))}]"),
                     "prog": f"{idx+1}/{len(groups)}",
                     "status": "Mengirim",
                     "group": url,
-                    "sent": sent
+                    "sent": sent,
                 }
 
                 final_message = cfg["message"]
@@ -324,12 +297,8 @@ async def worker(acc, cfg, status, done, failmap):
                             continue
 
                         await asyncio.wait_for(
-                            client.send_message(
-                               eid,
-                               final_message,
-                               parse_mode="md"
-                            ),
-                            timeout=20
+                            client.send_message(eid, final_message, parse_mode="md"),
+                            timeout=20,
                         )
 
                         sent_cache.add(key)
@@ -339,21 +308,15 @@ async def worker(acc, cfg, status, done, failmap):
 
                     except FloodWaitError as e:
 
-                        status[acc["phone"]]["status"] = (
-                            f"FloodWait {e.seconds}s"
-                        )
+                        status[acc["phone"]]["status"] = f"FloodWait {e.seconds}s"
 
                         await asyncio.sleep(e.seconds)
-                        
+
                     except asyncio.TimeoutError:
 
-                        status[acc["phone"]]["status"] = (
-                            "Timeout"
-                        )
+                        status[acc["phone"]]["status"] = "Timeout"
 
-                        log_error(
-                            f"{acc['phone']} | timeout | {url}"
-                        )
+                        log_error(f"{acc['phone']} | timeout | {url}")
 
                         await asyncio.sleep(5)
 
@@ -361,35 +324,20 @@ async def worker(acc, cfg, status, done, failmap):
 
                         if attempt == 2:
 
-                            failmap[acc["phone"]].append(
-                                (url, str(e))
-                            )
+                            failmap[acc["phone"]].append((url, str(e)))
 
-                            log_error(
-                                f"{acc['phone']} | "
-                                f"{url} | {str(e)}"
-                            )
+                            log_error(f"{acc['phone']} | " f"{url} | {str(e)}")
 
                         else:
                             await asyncio.sleep(2)
 
-                delay_random = random.randint(
-                    cfg["delay"],
-                    cfg["delay"] + 5
-                )
+                delay_random = random.randint(cfg["delay"], cfg["delay"] + 5)
 
                 for s in range(delay_random, 0, -1):
-                    status[acc["phone"]]["status"] = (
-                        f"Delay {s}"
-                    )
+                    status[acc["phone"]]["status"] = f"Delay {s}"
 
-                    await asyncio.sleep(
-                        random.uniform(1.5, 3.5)
-                    )
-            if (
-                cfg["repeat"] != "y"
-                and putaran >= cfg["rounds"]
-            ):
+                    await asyncio.sleep(random.uniform(1.5, 3.5))
+            if cfg["repeat"] != "y" and putaran >= cfg["rounds"]:
 
                 done[acc["phone"]] = True
 
@@ -405,7 +353,7 @@ async def worker(acc, cfg, status, done, failmap):
                     "prog": "-",
                     "status": f"Interval {s}",
                     "group": "-",
-                    "sent": sent
+                    "sent": sent,
                 }
 
                 await asyncio.sleep(1)
@@ -419,9 +367,7 @@ async def worker(acc, cfg, status, done, failmap):
 
         except Exception as e:
 
-            log_error(
-                f"{acc['phone']} | reconnect | {str(e)}"
-            )
+            log_error(f"{acc['phone']} | reconnect | {str(e)}")
 
             status[acc["phone"]] = {
                 "putaran": "-",
@@ -430,14 +376,14 @@ async def worker(acc, cfg, status, done, failmap):
                 "prog": "-",
                 "status": "Reconnect 10s",
                 "group": "-",
-                "sent": sent
+                "sent": sent,
             }
-            
+
             try:
                 await client.connect()
             except:
-                pass              
-                
+                pass
+
             await asyncio.sleep(10)
 
 
@@ -457,15 +403,18 @@ async def dashboard(status, selected, done, failmap):
 
             for phone in selected:
 
-                s = status.get(phone, {
-                    "putaran": "-",
-                    "total": "-",
-                    "progress": "[" + "-" * 20 + "]",
-                    "prog": "-",
-                    "status": "Menyiapkan",
-                    "group": "-",
-                    "sent": "-"
-                })
+                s = status.get(
+                    phone,
+                    {
+                        "putaran": "-",
+                        "total": "-",
+                        "progress": "[" + "-" * 20 + "]",
+                        "prog": "-",
+                        "status": "Menyiapkan",
+                        "group": "-",
+                        "sent": "-",
+                    },
+                )
 
                 status_text = s["status"]
 
@@ -483,31 +432,17 @@ async def dashboard(status, selected, done, failmap):
 
                 print(BLUE + f"┌─ {phone}")
 
-                print(
-                    f"│ Putaran : "
-                    f"{YELLOW}{s['putaran']} / {s['total']}"
-                )
+                print(f"│ Putaran : " f"{YELLOW}{s['putaran']} / {s['total']}")
 
-                print(
-                    f"│ Progress: "
-                    f"{GREEN}{s['progress']} {s['prog']}"
-                )
+                print(f"│ Progress: " f"{GREEN}{s['progress']} {s['prog']}")
 
-                print(
-                    f"│ Status  : "
-                    f"{color}{status_text}"
-                )
+                print(f"│ Status  : " f"{color}{status_text}")
 
                 print(f"│ Grup    : {s['group']}")
 
-                print(
-                    f"│ Terkirim: "
-                    f"{GREEN}{s['sent']}"
-                )
+                print(f"│ Terkirim: " f"{GREEN}{s['sent']}")
 
-                print(
-                    BLUE + "└" + "─" * (get_width() - 1)
-                )
+                print(BLUE + "└" + "─" * (get_width() - 1))
 
             if all(done.get(p, False) for p in selected):
                 break
@@ -523,10 +458,7 @@ async def run_parallel(accs, data_reference):
     status = {}
     done = {}
 
-    failmap = {
-        a["phone"]: []
-        for a in accs
-    }
+    failmap = {a["phone"]: [] for a in accs}
 
     tasks = []
     selected = []
@@ -535,16 +467,13 @@ async def run_parallel(accs, data_reference):
 
         if acc["last_config"] != None:
 
-            p = input(
-                f"{acc['phone']} "
-                f"pakai config sebelumnya? (y/n): "
-            ).lower().strip()
-
-            cfg = (
-                acc["last_config"]
-                if p == "y"
-                else input_config()
+            p = (
+                input(f"{acc['phone']} " f"pakai config sebelumnya? (y/n): ")
+                .lower()
+                .strip()
             )
+
+            cfg = acc["last_config"] if p == "y" else input_config()
 
         else:
             cfg = input_config()
@@ -558,27 +487,10 @@ async def run_parallel(accs, data_reference):
     for acc in accs:
 
         tasks.append(
-            asyncio.create_task(
-                worker(
-                    acc,
-                    acc["last_config"],
-                    status,
-                    done,
-                    failmap
-                )
-            )
+            asyncio.create_task(worker(acc, acc["last_config"], status, done, failmap))
         )
 
-    tasks.append(
-        asyncio.create_task(
-            dashboard(
-                status,
-                selected,
-                done,
-                failmap
-            )
-        )
-    )
+    tasks.append(asyncio.create_task(dashboard(status, selected, done, failmap)))
 
     try:
         await asyncio.gather(*tasks)
@@ -593,15 +505,9 @@ async def run_parallel(accs, data_reference):
 
 async def lookup_user(acc):
 
-    user = input(
-        "Masukkan username (@user) atau nomor (+62): "
-    ).strip()
+    user = input("Masukkan username (@user) atau nomor (+62): ").strip()
 
-    client = TelegramClient(
-         acc["session"],
-         acc["api_id"],
-         acc["api_hash"]
-        )
+    client = TelegramClient(acc["session"], acc["api_id"], acc["api_hash"])
 
     await client.start(acc["phone"])
 
@@ -609,9 +515,7 @@ async def lookup_user(acc):
 
         ent = await client.get_entity(user)
 
-        full = await client(
-            GetFullUserRequest(ent.id)
-        )
+        full = await client(GetFullUserRequest(ent.id))
 
         u = ent
 
@@ -625,76 +529,73 @@ async def lookup_user(acc):
 
         print("ID        :", u.id)
 
-        print(
-            "Username  :",
-            ("@" + u.username)
-            if u.username
-            else "-"
-        )
+        print("Username  :", ("@" + u.username) if u.username else "-")
 
         print("Nama      :", u.first_name or "-")
         print("Nomor     :", u.phone or "-")
-
         print(
-            "Premium   :",
-            "Ya" if u.premium else "Tidak"
+            "Contact   :",
+            "Ya" if u.contact else "Tidak"
         )
 
         print(
-            "Verified  :",
-            "Ya" if u.verified else "Tidak"
+            "Mutual    :",
+            "Ya" if u.mutual_contact else "Tidak"
         )
 
         print(
-            "Bot       :",
-            "Ya" if u.bot else "Tidak"
+            "Language  :",
+            getattr(u, "lang_code", "-") or "-"
         )
 
-        print(
-            "Scam      :",
-            "Ya" if u.scam else "Tidak"
-        )
-
-        print(
-            "Fake      :",
-            "Ya" if u.fake else "Tidak"
-        )
-
-        print(
-            "Restricted:",
-            "Ya" if u.restricted else "Tidak"
-        )
-
-        status_user = getattr(
+        photo = getattr(
             u,
-            "status",
+            "photo",
             None
         )
 
+        print(
+            "Photo     :",
+            "Ada" if photo else "Tidak"
+        )
+
+        dc_id = (
+            getattr(photo, "dc_id", "-")
+            if photo else "-"
+        )
+
+        print(
+            "DC ID     :",
+            dc_id
+        )
+
+        print("Premium   :", "Ya" if u.premium else "Tidak")
+
+        print("Verified  :", "Ya" if u.verified else "Tidak")
+
+        print("Bot       :", "Ya" if u.bot else "Tidak")
+
+        print("Scam      :", "Ya" if u.scam else "Tidak")
+
+        print("Fake      :", "Ya" if u.fake else "Tidak")
+
+        print("Restricted:", "Ya" if u.restricted else "Tidak")
+
+        status_user = getattr(u, "status", None)
+
         if status_user:
 
-            status_name = (
-                status_user.__class__.__name__
-            )
+            status_name = status_user.__class__.__name__
 
-            status_name = status_name.replace(
-                "UserStatus",
-                ""
-            )
+            status_name = status_name.replace("UserStatus", "")
 
         else:
 
             status_name = "Unknown"
 
-        print(
-            "Last Seen :",
-            status_name
-        )
+        print("Last Seen :", status_name)
 
-        print(
-            "Bio       :",
-            full.full_user.about or "-"
-        )
+        print("Bio       :", full.full_user.about or "-")
 
         garis()
 
@@ -708,29 +609,18 @@ async def lookup_user(acc):
 async def join_process(accs):
 
     links = [
-        g.strip()
-        for g in input(
-            "Link grup (pisah koma): "
-        ).split(",")
-        if g.strip()
+        g.strip() for g in input("Link grup (pisah koma): ").split(",") if g.strip()
     ]
 
     for acc in accs:
 
-        client = TelegramClient(
-            acc["session"],
-            acc["api_id"],
-            acc["api_hash"]
-        )
+        client = TelegramClient(acc["session"], acc["api_id"], acc["api_hash"])
 
         await client.start(acc["phone"])
 
         for link in links:
 
-            if (
-                not link.startswith("https://t.me/")
-                and not link.startswith("t.me/")
-            ):
+            if not link.startswith("https://t.me/") and not link.startswith("t.me/"):
                 print(acc["phone"], "| SKIP | link tidak valid:", link)
                 continue
 
@@ -752,39 +642,26 @@ async def join_process(accs):
                 print(acc["phone"], "| ERR |", link, "|", e)
 
             delay_join = random.randint(30, 120)
-            
-            print(
-               acc["phone"],
-               "| Delay |",
-               f"{delay_join}s"
-            )   
-        
+
+            print(acc["phone"], "| Delay |", f"{delay_join}s")
+
             await asyncio.sleep(delay_join)
-            
+
         await client.disconnect()
+
 
 async def cek_grup_process(acc):
 
-    raw = input(
-        "Masukkan link/username grup (pisah koma): "
-    ).strip()
+    raw = input("Masukkan link/username grup (pisah koma): ").strip()
 
-    groups = [
-        g.strip()
-        for g in raw.split(",")
-        if g.strip()
-    ]
+    groups = [g.strip() for g in raw.split(",") if g.strip()]
 
     if not groups:
         print("Tidak ada grup")
         input("Enter...")
         return
 
-    client = TelegramClient(
-        acc["session"],
-        acc["api_id"],
-        acc["api_hash"]
-    )
+    client = TelegramClient(acc["session"], acc["api_id"], acc["api_hash"])
 
     await client.start(acc["phone"])
 
@@ -796,49 +673,21 @@ async def cek_grup_process(acc):
 
             try:
 
-                await client(
-                    GetParticipantRequest(
-                        entity,
-                        "me"
-                    )
-                )
+                await client(GetParticipantRequest(entity, "me"))
 
-                banned_rights = getattr(
-                    entity,
-                    "default_banned_rights",
-                    None
-                )
+                banned_rights = getattr(entity, "default_banned_rights", None)
 
-                if (
-                    banned_rights
-                    and getattr(
-                        banned_rights,
-                        "send_messages",
-                        False
-                    )
-                ):
+                if banned_rights and getattr(banned_rights, "send_messages", False):
 
-                    print(
-                        acc["phone"],
-                        "| NO_SEND_PERMISSION |",
-                        link
-                    )
+                    print(acc["phone"], "| NO_SEND_PERMISSION |", link)
 
                 else:
 
-                    print(
-                        acc["phone"],
-                        "| VALID_JOINED |",
-                        link
-                    )
+                    print(acc["phone"], "| VALID_JOINED |", link)
 
             except UserNotParticipantError:
 
-                print(
-                    acc["phone"],
-                    "| NOT_JOIN |",
-                    link
-                )
+                print(acc["phone"], "| NOT_JOIN |", link)
 
         except Exception as e:
 
@@ -850,39 +699,23 @@ async def cek_grup_process(acc):
                 or "username not occupied" in err
             ):
 
-                print(
-                    acc["phone"],
-                    "| DEAD |",
-                    link
-                )
+                print(acc["phone"], "| DEAD |", link)
 
-            elif (
-                "private" in err
-                or "forbidden" in err
-            ):
+            elif "private" in err or "forbidden" in err:
 
-                print(
-                    acc["phone"],
-                    "| PRIVATE_NO_ACCESS |",
-                    link
-                )
+                print(acc["phone"], "| PRIVATE_NO_ACCESS |", link)
 
             else:
 
-                print(
-                    acc["phone"],
-                    "| UNKNOWN_ERROR |",
-                    link,
-                    "|",
-                    e
-                )
+                print(acc["phone"], "| UNKNOWN_ERROR |", link, "|", e)
 
         await asyncio.sleep(2)
 
     await client.disconnect()
 
     input("Enter untuk kembali...")
-    
+
+
 if __name__ == "__main__":
 
     data = load_accounts()
@@ -926,9 +759,7 @@ if __name__ == "__main__":
                 for i, a in enumerate(data["accounts"]):
                     print(f"{i+1}. {a['phone']}")
 
-                pilih = input(
-                    "Hapus nomor (Enter untuk kembali): "
-                ).strip()
+                pilih = input("Hapus nomor (Enter untuk kembali): ").strip()
 
                 if not pilih:
                     continue
@@ -954,9 +785,7 @@ if __name__ == "__main__":
                 for i, a in enumerate(data["accounts"]):
                     print(f"{i+1}. {a['phone']}")
 
-                pilih = input(
-                    "Pilih akun (Enter untuk kembali): "
-                ).strip()
+                pilih = input("Pilih akun (Enter untuk kembali): ").strip()
 
                 if not pilih:
                     continue
@@ -973,20 +802,14 @@ if __name__ == "__main__":
                     input("Enter...")
                     continue
 
-                asyncio.run(
-                    lookup_user(
-                        data["accounts"][p]
-                    )
-                )
-            
+                asyncio.run(lookup_user(data["accounts"][p]))
+
             elif pil == "8":
 
                 for i, a in enumerate(data["accounts"]):
                     print(f"{i+1}. {a['phone']}")
 
-                pilih = input(
-                    "Pilih akun (Enter untuk kembali): "
-                ).strip()
+                pilih = input("Pilih akun (Enter untuk kembali): ").strip()
 
                 if not pilih:
                     continue
@@ -1003,20 +826,14 @@ if __name__ == "__main__":
                     input("Enter...")
                     continue
 
-                asyncio.run(
-                    cek_grup_process(
-                        data["accounts"][p]
-                    )
-                )
-            
+                asyncio.run(cek_grup_process(data["accounts"][p]))
+
             elif pil == "1":
 
                 for i, a in enumerate(data["accounts"]):
                     print(f"{i+1}. {a['phone']}")
 
-                pilih = input(
-                    "Pilih akun (Enter untuk kembali): "
-                ).strip()
+                pilih = input("Pilih akun (Enter untuk kembali): ").strip()
 
                 if not pilih:
                     continue
@@ -1033,12 +850,7 @@ if __name__ == "__main__":
                     input("Enter...")
                     continue
 
-                asyncio.run(
-                    run_parallel(
-                        [data["accounts"][p]],
-                        data
-                    )
-                )
+                asyncio.run(run_parallel([data["accounts"][p]], data))
 
             elif pil == "2":
 
@@ -1047,31 +859,21 @@ if __name__ == "__main__":
                     input("Enter...")
                     continue
 
-                asyncio.run(
-                    run_parallel(
-                        data["accounts"],
-                        data
-                    )
-                )
+                asyncio.run(run_parallel(data["accounts"], data))
 
             elif pil == "3":
 
                 for i, a in enumerate(data["accounts"]):
                     print(f"{i+1}. {a['phone']}")
 
-                raw = input(
-                    "Pilih (pisah koma, Enter untuk kembali): "
-                ).strip()
+                raw = input("Pilih (pisah koma, Enter untuk kembali): ").strip()
 
                 if not raw:
                     continue
 
                 try:
 
-                    ids = [
-                        int(x.strip()) - 1
-                        for x in raw.split(",")
-                    ]
+                    ids = [int(x.strip()) - 1 for x in raw.split(",")]
 
                     sel = [
                         data["accounts"][i]
@@ -1084,9 +886,7 @@ if __name__ == "__main__":
                         input("Enter...")
                         continue
 
-                    asyncio.run(
-                        run_parallel(sel, data)
-                    )
+                    asyncio.run(run_parallel(sel, data))
 
                 except Exception:
                     print("Format salah")
@@ -1097,9 +897,7 @@ if __name__ == "__main__":
                 print("1. Join 1 akun")
                 print("2. Join semua akun")
 
-                sub = input(
-                    "Pilih (Enter untuk kembali): "
-                ).strip()
+                sub = input("Pilih (Enter untuk kembali): ").strip()
 
                 if not sub:
                     continue
@@ -1109,9 +907,7 @@ if __name__ == "__main__":
                     for i, a in enumerate(data["accounts"]):
                         print(f"{i+1}. {a['phone']}")
 
-                    pilih = input(
-                        "Pilih akun (Enter untuk kembali): "
-                    ).strip()
+                    pilih = input("Pilih akun (Enter untuk kembali): ").strip()
 
                     if not pilih:
                         continue
@@ -1128,24 +924,12 @@ if __name__ == "__main__":
                         input("Enter...")
                         continue
 
-                    asyncio.run(
-                        join_process(
-                            [data["accounts"][p]]
-                        )
-                    )
+                    asyncio.run(join_process([data["accounts"][p]]))
 
                 elif sub == "2":
 
-                    asyncio.run(
-                        join_process(
-                            data["accounts"]
-                        )
-                    )
+                    asyncio.run(join_process(data["accounts"]))
 
         except KeyboardInterrupt:
 
-            print(
-                "\n" +
-                RED +
-                "Dihentikan oleh user.\n"
-            )
+            print("\n" + RED + "Dihentikan oleh user.\n")
